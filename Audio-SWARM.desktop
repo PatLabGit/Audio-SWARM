@@ -1,0 +1,12 @@
+#!/usr/bin/env xdg-open
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Audio-SWARM
+Comment=Launch Audio-SWARM without opening a terminal
+Icon=/home/patrice/Desktop/Audio-SWARM-Alpha-6/img/audio-swarm-logo-2.png
+TryExec=python3
+Exec=python3 -c "import os,runpy,sys,urllib.parse; p=sys.argv[1]; p=urllib.parse.unquote(urllib.parse.urlparse(p).path) if p.startswith('file:') else p; os.chdir(os.path.dirname(os.path.abspath(p))); runpy.run_path(os.path.join(os.getcwd(),'main.py'),run_name='__main__')" %k
+Terminal=false
+StartupNotify=false
+Categories=AudioVideo;Utility;

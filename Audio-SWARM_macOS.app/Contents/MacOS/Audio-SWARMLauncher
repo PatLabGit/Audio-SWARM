@@ -1,0 +1,61 @@
+#!/bin/bash
+# Audio-SWARM macOS launcher. Place this .app beside main.py.
+# It launches the existing application without a Terminal window.
+
+set -u
+
+MACOS_DIR="$(cd "$(dirname "$0")" && pwd)"
+SWARM_DIR="$(cd "$MACOS_DIR/../../.." && pwd)"
+MAIN_SCRIPT="$SWARM_DIR/main.py"
+
+show_error() {
+    /usr/bin/osascript -e 'on run argv' \
+        -e 'display dialog (item 1 of argv) buttons {"OK"} default button "OK" with title "Audio-SWARM Launcher" with icon caution' \
+        -e 'end run' "$1" >/dev/null 2>&1 || true
+}
+
+if [ ! -f "$MAIN_SCRIPT" ]; then
+    show_error "Audio-SWARM could not find main.py. Place Audio-SWARM_macOS.app in the same folder as main.py."
+    exit 1
+fi
+
+# Finder-launched apps often receive a minimal PATH. Add common Python locations.
+export PATH="$SWARM_DIR/.venv/bin:$SWARM_DIR/venv/bin:/opt/homebrew/bin:/usr/local/bin:/Library/Frameworks/Python.framework/Versions/Current/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+
+PYTHON=""
+for candidate in \
+    "$SWARM_DIR/.venv/bin/python3" \
+    "$SWARM_DIR/.venv/bin/python" \
+    "$SWARM_DIR/venv/bin/python3" \
+    "$SWARM_DIR/venv/bin/python" \
+    "/opt/homebrew/bin/python3" \
+    "/usr/local/bin/python3" \
+    "/Library/Frameworks/Python.framework/Versions/Current/bin/python3" \
+    "/usr/bin/python3"; do
+    if [ -x "$candidate" ]; then
+        PYTHON="$candidate"
+        break
+    fi
+done
+
+if [ -z "$PYTHON" ]; then
+    PYTHON="$(command -v python3 2>/dev/null || true)"
+fi
+
+if [ -z "$PYTHON" ] || [ ! -x "$PYTHON" ]; then
+    show_error "Python 3 was not found. Install Python 3 and Audio-SWARM's required dependencies, then try again."
+    exit 1
+fi
+
+# Keep launch diagnostics for troubleshooting without opening Terminal.
+LOG_DIR="$HOME/Library/Logs"
+mkdir -p "$LOG_DIR" 2>/dev/null || true
+LOG_FILE="$LOG_DIR/Audio-SWARM-launcher.log"
+
+cd "$SWARM_DIR" || {
+    show_error "Audio-SWARM could not open its application folder."
+    exit 1
+}
+
+# Replace the launcher shell with Python so the GUI process owns the app process.
+exec "$PYTHON" "$MAIN_SCRIPT" >"$LOG_FILE" 2>&1

@@ -1,0 +1,55 @@
+## Waveform Style — 1920x1080p 1000x120 pixels
+## Circular — 1920x1080p 200x200 pixels
+
+### Vertical Flow
+
+1. waveform-style-vertical-standard-classic-bars.png
+2. waveform-style-vertical-smooth-capsules.png
+3. waveform-style-vertical-lollipop.png
+4. waveform-style-vertical-sharp-spikes.png
+5. waveform-style-vertical-arrow-spear.png
+
+### Horizontal Flow
+
+6. waveform-style-horizontal-standard-classic-bars.png
+7. waveform-style-horizontal-smooth-capsules.png
+8. waveform-style-horizontal-lollipop.png
+9. waveform-style-horizontal-sharp-spikes.png
+10. waveform-style-horizontal-arrow-spear.png
+
+## Canvas & Resolution — Number of Stems — 4 images
+
+11. canvas-resolution-stem-count-very-low.png — 40–99 stems: Very low density.
+12. canvas-resolution-stem-count-medium.png — 100–199 stems: Medium density.
+13. canvas-resolution-stem-count-high.png — 200–299 stems: High density.
+14. canvas-resolution-stem-count-super-high.png — 300–500 stems: Super high density.
+
+## Canvas & Resolution — Gradient Slices — 3 images
+
+15. canvas-resolution-gradient-slices-low.png — Below 20 slices: Low resolution.
+16. canvas-resolution-gradient-slices-medium.png — 20–50 slices: Medium resolution.
+17. canvas-resolution-gradient-slices-high.png — Above 50 slices: High resolution.
+
+Total: 17 preview images.
+
+4K 2000x240 pixels (twice the size)
+4K Circular 400x400 pixels (twice the size)
+
+4k-waveform-style-vertical-standard-classic-bars.png
+4k-waveform-style-vertical-smooth-capsules.png
+4k-waveform-style-vertical-lollipop.png
+4k-waveform-style-vertical-sharp-spikes.png
+4k-waveform-style-vertical-arrow-spear.png
+4k-waveform-style-horizontal-standard-classic-bars.png
+4k-waveform-style-horizontal-smooth-capsules.png
+4k-waveform-style-horizontal-lollipop.png
+4k-waveform-style-horizontal-sharp-spikes.png
+4k-waveform-style-horizontal-arrow-spear.png
+4k-canvas-resolution-stem-count-very-low.png
+4k-canvas-resolution-stem-count-medium.png
+4k-canvas-resolution-stem-count-high.png
+4k-canvas-resolution-stem-count-super-high.png
+4k-canvas-resolution-gradient-slices-low.png
+4k-canvas-resolution-gradient-slices-medium.png
+4k-canvas-resolution-gradient-slices-high.png
+

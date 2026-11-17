@@ -1,0 +1,41 @@
+For the left navigation panel, there are three relevant colours in the Gray theme:
+
+| Element                      | Palette key | Colour    |
+| ---------------------------- | ----------- | --------- |
+| Sidebar background           | `panel`     | `#383838` |
+| Normal navigation buttons    | `panel`     | `#383838` |
+| Mouse hover on a button      | `accent`    | `#00ff66` |
+| Currently selected workspace | `selected`  | `#58768b` |
+
+**Normal:** `#383838`
+
+**Hover:** `#00ff66`
+
+**Selected:** `#58768b`
+
+So, if you want to change the colour that appears when hovering over a navigation button, change `accent` in `theme.py`.
+
+The relevant setting in `main_window.py` is `activebackground=palette["accent"]`.
+
+
+When hovering over a **tab in the main panel**, the colour is:
+
+`panel` — `#383838`
+
+`styles.py`, both tab styles use:
+
+```
+background=[    ("selected", selected),    ("active", panel),    ("!selected", tab)]
+```
+
+So the Gray theme behaves as follows:
+
+| Tab state          | Palette key | Colour    |
+| ------------------ | ----------- | --------- |
+| Normal, unselected | `tab`       | `#303236` |
+| Hover              | `panel`     | `#383838` |
+| Selected           | `selected`  | `#58768b` |
+
+To change the tab hover colour, change `panel` in `theme.py`.
+
+Note that this also affects other panels using that colour.

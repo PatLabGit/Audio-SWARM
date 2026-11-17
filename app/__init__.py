@@ -1,0 +1,1 @@
+"""Audio-SWARM application package."""
