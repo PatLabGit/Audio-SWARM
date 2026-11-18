@@ -939,8 +939,8 @@ class LegacyRenderCore:
                 solid_color = setting("color_nodes", "color_nodes")[0]
             else:
                 stops = setting("color_nodes", "color_nodes").copy()
-                if setting("reverse_color_map", "reverse_color_map"):
-                    stops.reverse()
+                #if setting("reverse_color_map", "reverse_color_map"):
+                #    stops.reverse()
                 color_map = LinearSegmentedColormap.from_list('swarm_circular_grad', stops)
                 solid_color = setting("color_nodes", "color_nodes")[0]
 
