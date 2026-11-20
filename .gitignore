@@ -20,5 +20,8 @@ Thumbs.db
 # Logs
 *.log
 
+# Backup
+*.bak
+
 # personal settings
 settings.json

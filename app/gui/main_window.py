@@ -157,6 +157,19 @@ class MainWindowMixin:
                                command=lambda item=key: self.show_workspace(item))
             button.pack(fill="x", pady=2)
             self.workspace_buttons[key] = button
+        # Persistent artwork-only switch lives at the bottom of the sidebar.
+        image_only_frame = tk.Frame(self.sidebar, bg=palette["panel"])
+        image_only_frame.pack(side="bottom", fill="x", pady=(12, 3))
+        self.generate_image_only_sidebar_check = tk.Checkbutton(
+            image_only_frame,
+            text=self.tr("Generate Image Only"),
+            variable=self.generate_image_only,
+            bg=palette["panel"], fg=palette["text"], activebackground=palette["panel"],
+            activeforeground=palette["text"], selectcolor=palette["field"],
+            anchor="w", justify="left", wraplength=170,
+            command=self._on_generate_image_only_toggle,
+        )
+        self.generate_image_only_sidebar_check.pack(fill="x", padx=4, pady=4)
 
         self.build_tab1_interface()
         self.build_circular_tab_interface()

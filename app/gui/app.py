@@ -80,7 +80,7 @@ class AudioSWARMApp(LocalizationMixin, HelpAboutMixin, ComponentsMixin, MainWind
         # the enabled backdrop button uses the muted active-sub-tab color.
         self.bg_solid_color_selected = False
         self.keep_standalone_png = tk.BooleanVar(value=True)
-        self.generate_image_only = tk.BooleanVar(value=False)
+        self.generate_image_only = tk.BooleanVar(value=self.read_saved_image_only())
         self.gradient_direction = tk.StringVar(value="Horizontal")
         self.peak_geometry_shape = tk.StringVar(value="Rectangle")
 

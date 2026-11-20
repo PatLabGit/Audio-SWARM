@@ -141,6 +141,7 @@ class ProcessingMixin:
 
     def _run_worker(self, operation, title, output_directory, clear_log=True):
         self.cancel_operation = False
+        self.process_log_output_directory = output_directory
         if clear_log:
             self.clear_system_log()
         self.progress_bar.configure(value=0, maximum=1)
@@ -150,6 +151,7 @@ class ProcessingMixin:
             try:
                 batch = operation(lambda: self.cancel_operation, self._progress_callback)
             except Exception as exc:
+                self.record_processing_error(f"Processing Error: {exc}")
                 self.ui_call(lambda err=str(exc): self.show_themed_popup(self.tr("Processing Error"), err, kind="error"))
             finally:
                 self._finish_job(batch, title, output_directory)
@@ -158,23 +160,26 @@ class ProcessingMixin:
     def launch_tab1_processing_pipeline(self):
         if self._busy():
             return
+        self.clear_system_log()
         source = self.source_folder.get().strip().strip('{}')
         settings = self._build_waveform_settings()
         output = str((Path(source).resolve().parent if Path(source).is_file() else Path(source).resolve()) / ("Images_only" if settings.generate_image_only else "Waveform_Outputs"))
-        self._run_worker(lambda cancelled, progress: self.engine.render_batch(source, settings, progress=progress, cancelled=cancelled), "Waveform rendering complete", output)
+        self._run_worker(lambda cancelled, progress: self.engine.render_batch(source, settings, progress=progress, cancelled=cancelled), "Waveform rendering complete", output, clear_log=False)
 
     def launch_circular_processing_pipeline(self):
         if self._busy():
             return
+        self.clear_system_log()
         source = self.source_folder.get().strip().strip('{}')
         mode = self.circular_mode.get()
         settings = self._build_circular_settings()
         output = str((Path(source).resolve().parent if Path(source).is_file() else Path(source).resolve()) / ("Images_only" if settings.generate_image_only else "Circular_Waveform_Outputs"))
-        self._run_worker(lambda cancelled, progress: self.engine.render_circular_batch(source, settings, mode=mode, progress=progress, cancelled=cancelled), "Circular rendering complete", output)
+        self._run_worker(lambda cancelled, progress: self.engine.render_circular_batch(source, settings, mode=mode, progress=progress, cancelled=cancelled), "Circular rendering complete", output, clear_log=False)
 
     def launch_tab2_pairing_pipeline(self):
         if self._busy():
             return
+        self.clear_system_log()
         source = self.source_folder.get().strip().strip('{}')
         source_path = Path(source).expanduser()
         if not source_path.is_dir():
@@ -213,6 +218,7 @@ class ProcessingMixin:
         """Processes folder batch or single video cover injections on a worker thread."""
         if self._busy():
             return
+        self.clear_system_log()
 
         source = self.source_folder.get().strip().strip('{}')
         source_path = Path(source).expanduser()
@@ -270,8 +276,7 @@ class ProcessingMixin:
         output_dir = source_dir / "Video_Poster_Outputs"
         total_runs = min(video_count, image_count)
 
-        # Clear logs and lock interface controls
-        self.clear_system_log()
+        # Lock interface controls after the log has been cleared at request start.
         self.toggle_ui_interactivity(False)
         self.cancel_operation = False
         self.progress_bar.configure(value=0, maximum=total_runs)

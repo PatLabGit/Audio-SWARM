@@ -59,6 +59,17 @@ class LocalizationMixin:
             theme = "Dark"
         return theme if theme in ("Dark", "Light", "Gray") else "Dark"
 
+    def read_saved_image_only(self):
+        """Read image-only mode from settings, defaulting to disabled."""
+        try:
+            with open(self.settings_path, "r", encoding="utf-8") as settings_file:
+                settings = json.load(settings_file)
+            value = settings.get("generate_image_only", False) if isinstance(settings, dict) else False
+        except (OSError, json.JSONDecodeError):
+            value = False
+        return value if isinstance(value, bool) else False
+
+
     def read_recent_colors(self):
         """Read the most recently used valid HEX colours."""
         try:
@@ -86,6 +97,8 @@ class LocalizationMixin:
             settings["language"] = self.language_code
             settings["theme"] = getattr(self, "theme_name", "Dark")
             settings["recent_colors"] = list(getattr(self, "recent_colors", []))[:20]
+            image_only_var = getattr(self, "generate_image_only", None)
+            settings["generate_image_only"] = bool(image_only_var.get()) if image_only_var is not None else False
             with open(temporary_path, "w", encoding="utf-8") as settings_file:
                 json.dump(settings, settings_file, ensure_ascii=False, indent=4)
                 settings_file.write("\n")

@@ -88,20 +88,65 @@ class ComponentsMixin:
             )
 
     def write_system_log(self, text_string):
+        text_string = str(text_string)
+        if not hasattr(self, "process_window_lines"):
+            self.process_window_lines = []
+        if not hasattr(self, "process_error_lines"):
+            self.process_error_lines = []
+        self.process_window_lines.append(text_string)
+        lowered = text_string.lower()
+        if ("❌" in text_string or "traceback" in lowered or "exception" in lowered
+                or "error:" in lowered or "failed" in lowered):
+            self.process_error_lines.append(text_string)
         self.log_box.config(state="normal")
         self.log_box.insert("end", text_string + "\n")
-        # Keep only the most recent lines so very long batches cannot grow the widget without limit.
-        max_log_lines = 2000
-        total_lines = int(self.log_box.index("end-1c").split(".")[0])
-        if total_lines > max_log_lines:
-            self.log_box.delete("1.0", f"{total_lines - max_log_lines + 1}.0")
         self.log_box.see("end")
         self.log_box.config(state="disabled")
+        if getattr(self, "process_log_output_directory", None):
+            self.save_processing_log(self.process_log_output_directory)
 
     def clear_system_log(self):
+        self.process_window_lines = []
+        self.process_error_lines = []
         self.log_box.config(state="normal")
         self.log_box.delete("1.0", "end")
         self.log_box.config(state="disabled")
+
+    def record_processing_error(self, message):
+        message = str(message)
+        if not hasattr(self, "process_error_lines"):
+            self.process_error_lines = []
+        self.process_error_lines.append(message)
+        if getattr(self, "process_log_output_directory", None):
+            self.save_processing_log(self.process_log_output_directory)
+
+    def save_processing_log(self, output_directory):
+        """Save errors first, followed by the exact process-window text."""
+        try:
+            from pathlib import Path
+            target_dir = Path(output_directory)
+            target_dir.mkdir(parents=True, exist_ok=True)
+            log_path = target_dir / "Audio-SWARM.log"
+            errors = list(getattr(self, "process_error_lines", []))
+            window_lines = list(getattr(self, "process_window_lines", []))
+            with log_path.open("w", encoding="utf-8") as log_file:
+                log_file.write("=== ERRORS ===\n")
+                log_file.write("\n".join(errors) if errors else "None")
+                log_file.write("\n\n=== PROCESS WINDOW (verbatim) ===\n")
+                log_file.write("\n".join(window_lines))
+                log_file.write("\n")
+            return str(log_path)
+        except (OSError, ValueError) as exc:
+            import sys
+            print(f"Audio-SWARM: could not save Audio-SWARM.log: {exc}", file=sys.stderr)
+            return None
+
+
+        self.log_box.config(state="normal")
+        self.log_box.insert("end", text_string + "\n")
+        self.log_box.see("end")
+        self.log_box.config(state="disabled")
+
 
     def toggle_ui_interactivity(self, enable=True):
         self.is_processing = not enable

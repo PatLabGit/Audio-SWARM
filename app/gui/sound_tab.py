@@ -166,14 +166,6 @@ class SoundTabMixin:
             activeforeground="white", selectcolor="#2d2d30",
             command=self._on_keep_images_toggle,
         ).grid(row=1, column=0, columnspan=4, sticky="w", pady=5)
-        tk.Checkbutton(
-            file_lbl_frame,
-            text=self.tr("Generate Image only, no embedding"),
-            variable=self.generate_image_only,
-            bg=panel_bg, fg="#ffffff", activebackground=panel_bg,
-            activeforeground="white", selectcolor="#2d2d30",
-            command=self._on_generate_image_only_toggle,
-        ).grid(row=2, column=0, columnspan=4, sticky="w", pady=5)
 
         # Selection preview area: explanatory notice and optional pre-rendered PNG.
         # Keep one PhotoImage reference only so repeated tab changes cannot grow memory.
@@ -395,12 +387,14 @@ class SoundTabMixin:
             self.sound_preview_failure_label.place_forget()
             self.sound_preview_failure_label.configure(text="")
     def _on_generate_image_only_toggle(self):
-        """Image-only output excludes keeping a separate image beside embedded audio."""
+        """Image-only output excludes audio embedding and persists the user's choice."""
         if self.generate_image_only.get() and self.keep_standalone_png.get():
             self.keep_standalone_png.set(False)
+        self.save_settings()
 
     def _on_keep_images_toggle(self):
         """Keep the two output preferences mutually exclusive when enabling either."""
         if self.keep_standalone_png.get() and self.generate_image_only.get():
             self.generate_image_only.set(False)
+        self.save_settings()
 

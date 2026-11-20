@@ -1,30 +1,11 @@
 """Pure-Python orchestration for Audio-SWARM processing jobs."""
 from __future__ import annotations
 
-import base64
-import gc
-import multiprocessing
-import os
-import shutil
-import subprocess
-import tempfile
-import threading
-import wave
-from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
-from concurrent.futures.process import BrokenProcessPool
+from collections.abc import Callable
 from pathlib import Path
-
-import numpy as np
-import matplotlib
-matplotlib.use("Agg")  # headless backend: no Tk canvases/windows created from worker threads
-import matplotlib.pyplot as plt
-from matplotlib.collections import LineCollection
-from matplotlib.colors import LinearSegmentedColormap
-from matplotlib.patches import Polygon, Rectangle
 
 from .artwork import embed_artwork, prepare_artwork
 from .files import IMAGE_EXTENSIONS, discover_audio, mirrored_output_directory
-from .legacy_renderer import LegacyRendererAdapter
 from .models import (
     ArtworkSettings,
     BatchResult,
@@ -34,31 +15,22 @@ from .models import (
     ProgressCallback,
     WaveformSettings,
 )
-from .process import ffmpeg_command, run_quiet
+from .legacy_renderer import LegacyRendererAdapter
+import os
+import wave
+import base64
+import shutil
+import subprocess
+import tempfile
+import gc
 
-MAX_RENDER_WORKERS = 4
-# Above this many pixels per image, limit parallelism: each Matplotlib figure is RAM-heavy.
-LARGE_IMAGE_PIXELS = 40_000_000
-
-
-def _render_task(kind, settings, audio_path, destination_dir, mode, single_file, copy_wav, translations):
-    """Render one track. Top-level so it can run in a worker process.
-
-    Returns (ProcessingResult, [log messages]); the caller forwards the logs on its own thread.
-    """
-    logs: list[str] = []
-    if copy_wav:
-        try:
-            shutil.copy2(audio_path, Path(destination_dir) / Path(audio_path).name)
-        except OSError as error:
-            return ProcessingResult(Path(audio_path), None, False, str(error)), logs
-    translator = (lambda text: translations.get(text, text)) if translations else None
-    renderer = LegacyRendererAdapter(settings, logs.append, single_file=single_file, translator=translator)
-    if kind == "circular":
-        result = renderer.render_circular(audio_path, destination_dir, mode)
-    else:
-        result = renderer.render_waveform(audio_path, destination_dir)
-    return result, logs
+import numpy as np
+import matplotlib
+matplotlib.use("Agg")  # headless backend: no Tk canvases/windows created from worker threads
+import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.collections import LineCollection
+from matplotlib.patches import Polygon, Rectangle
 
 
 class ProcessingEngine:
@@ -77,93 +49,6 @@ class ProcessingEngine:
         """Send a log message to the optional injected callback."""
         self._logger(message)
 
-    def _translation_table(self):
-        """Plain dict of translations (picklable) when the translator belongs to the GUI."""
-        table = getattr(getattr(self._translator, "__self__", None), "translations", None)
-        return dict(table) if isinstance(table, dict) else None
-
-    @staticmethod
-    def _worker_count(settings: WaveformSettings, total: int) -> int:
-        workers = min(MAX_RENDER_WORKERS, os.cpu_count() or 1, total)
-        if int(settings.width) * int(settings.height) > LARGE_IMAGE_PIXELS:
-            workers = min(workers, 2)
-        return max(1, workers)
-
-    def _render_many(self, kind, source_path, audio_files, output_root, settings, mode,
-                     label, progress, cancelled) -> BatchResult:
-        """Render tracks serially, or across worker processes when it is worthwhile.
-
-        Each process has its own Matplotlib state, so renders cannot interfere with
-        one another. Results keep the input order.
-        """
-        total = len(audio_files)
-        single_file = source_path.is_file()
-        translations = self._translation_table()
-        results: list[ProcessingResult | None] = [None] * total
-        completed = 0
-        was_cancelled = False
-
-        def args_for(index):
-            audio_path = audio_files[index]
-            destination = mirrored_output_directory(source_path, audio_path, output_root)
-            copy_wav = (source_path.is_dir() and audio_path.suffix.lower() == ".wav"
-                        and not settings.generate_image_only)
-            return (kind, settings, str(audio_path), str(destination), mode,
-                    single_file, copy_wav, translations)
-
-        def announce(index):
-            if progress is not None:
-                progress(f"{index + 1}/{total}: {label}{audio_files[index].name}", completed, total)
-
-        def finish(index, outcome):
-            nonlocal completed
-            result, logs = outcome
-            for message in logs:
-                self._log(message)
-            results[index] = result
-            completed += 1
-            announce(index)
-
-        workers = self._worker_count(settings, total)
-        if workers <= 1:
-            for index in range(total):
-                if cancelled is not None and cancelled():
-                    was_cancelled = True
-                    break
-                announce(index)
-                finish(index, _render_task(*args_for(index)))
-        else:
-            pending = {}
-            next_index = 0
-            try:
-                with ProcessPoolExecutor(max_workers=workers,
-                                         mp_context=multiprocessing.get_context("spawn")) as pool:
-                    while True:
-                        while len(pending) < workers and next_index < total and not was_cancelled:
-                            if cancelled is not None and cancelled():
-                                was_cancelled = True
-                                break
-                            announce(next_index)
-                            pending[pool.submit(_render_task, *args_for(next_index))] = next_index
-                            next_index += 1
-                        if not pending:
-                            break
-                        done, _ = wait(pending, timeout=0.5, return_when=FIRST_COMPLETED)
-                        for future in done:
-                            index = pending.pop(future)
-                            try:
-                                outcome = future.result()
-                            except BrokenProcessPool:
-                                raise
-                            except Exception as error:  # noqa: BLE001 - report per-track failure, keep going
-                                outcome = (ProcessingResult(audio_files[index], None, False, str(error)), [])
-                            finish(index, outcome)
-                        if cancelled is not None and not was_cancelled and cancelled():
-                            was_cancelled = True
-            except BrokenProcessPool:
-                self._log(self._translator("❌ A render worker process crashed; the batch was stopped."))
-        return BatchResult(tuple(r for r in results if r is not None), was_cancelled)
-
     def render_batch(
         self,
         source: str | Path,
@@ -179,8 +64,30 @@ class ProcessingEngine:
         # into its Waveform_Outputs tree, preserving relative subdirectories.
         output_root = (source_path.parent if source_path.is_file() else source_path) / ("Images_only" if settings.generate_image_only else ("" if source_path.is_file() else output_directory))
         output_root.mkdir(parents=True, exist_ok=True)
-        return self._render_many("waveform", source_path, audio_files, output_root, settings,
-                                 None, "Rendering ", progress, cancelled)
+        renderer = LegacyRendererAdapter(settings, self._log, single_file=source_path.is_file(), popup=self._popup, translator=self._translator)
+        results: list[ProcessingResult] = []
+        was_cancelled = False
+        for index, audio_path in enumerate(audio_files, start=1):
+            if cancelled is not None and cancelled():
+                was_cancelled = True
+                break
+            destination_dir = mirrored_output_directory(source_path, audio_path, output_root)
+            if progress is not None:
+                progress(f"{index}/{len(audio_files)}: Rendering {audio_path.name}", index - 1, len(audio_files))
+            # Folder drops copy WAV audio into the output tree as requested. For a
+            # single-file drop output_root is the source folder, so no redundant copy.
+            if source_path.is_dir() and audio_path.suffix.lower() == ".wav" and not settings.generate_image_only:
+                try:
+                    shutil.copy2(audio_path, destination_dir / audio_path.name)
+                except OSError as error:
+                    results.append(ProcessingResult(audio_path, None, False, str(error)))
+                    continue
+            renderer.set_batch_log_context(source_path, audio_path)
+            result = renderer.render_waveform(audio_path, destination_dir)
+            results.append(result)
+            if progress is not None:
+                progress(f"{index}/{len(audio_files)}: Rendering {audio_path.name}", index, len(audio_files))
+        return BatchResult(tuple(results), was_cancelled)
 
     def render_circular_batch(
         self,
@@ -196,9 +103,29 @@ class ProcessingEngine:
         audio_files = discover_audio(source_path)
         output_root = (source_path.parent if source_path.is_file() else source_path) / ("Images_only" if settings.generate_image_only else ("" if source_path.is_file() else output_directory))
         output_root.mkdir(parents=True, exist_ok=True)
+        renderer = LegacyRendererAdapter(settings, self._log, single_file=source_path.is_file(), popup=self._popup, translator=self._translator)
+        results: list[ProcessingResult] = []
+        was_cancelled = False
         normalized_mode = {"radial": "waveform", "waveform": "waveform", "spectrum": "spectrum", "minimal": "minimal"}.get(mode, mode)
-        return self._render_many("circular", source_path, audio_files, output_root, settings,
-                                 normalized_mode, "Circular: Rendering ", progress, cancelled)
+        for index, audio_path in enumerate(audio_files, start=1):
+            if cancelled is not None and cancelled():
+                was_cancelled = True
+                break
+            destination_dir = mirrored_output_directory(source_path, audio_path, output_root)
+            if progress is not None:
+                progress(f"{index}/{len(audio_files)}: Circular: Rendering {audio_path.name}", index - 1, len(audio_files))
+            if source_path.is_dir() and audio_path.suffix.lower() == ".wav" and not settings.generate_image_only:
+                try:
+                    shutil.copy2(audio_path, destination_dir / audio_path.name)
+                except OSError as error:
+                    results.append(ProcessingResult(audio_path, None, False, str(error)))
+                    continue
+            renderer.set_batch_log_context(source_path, audio_path, normalized_mode)
+            result = renderer.render_circular(audio_path, destination_dir, normalized_mode)
+            results.append(result)
+            if progress is not None:
+                progress(f"{index}/{len(audio_files)}: Circular: Rendering {audio_path.name}", index, len(audio_files))
+        return BatchResult(tuple(results), was_cancelled)
 
     def merge_artwork_batch(
         self,
@@ -411,16 +338,16 @@ class LegacyRenderCore:
         )
         os.close(fd)
         try:
-            command = ffmpeg_command(
-                "-y", "-nostdin", "-hide_banner", "-loglevel", "error",
+            command = [
+                "ffmpeg", "-y", "-nostdin", "-hide_banner", "-loglevel", "error",
                 "-i", audio_path, "-i", image_path,
                 # Explicit audio mapping excludes any existing attached-picture stream in the input.
                 "-map", "0:a:0", "-map", "1:v:0", "-map_metadata", "0",
                 "-c:a", "copy", "-c:v", video_codec, "-disposition:v:0", "attached_pic",
                 temp_path,
-            )
-            result = run_quiet(command, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
-                               text=True, check=False)
+            ]
+            result = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                                    text=True, check=False)
             if result.returncode != 0 or not os.path.isfile(temp_path) or os.path.getsize(temp_path) == 0:
                 details = (result.stderr or "FFmpeg did not produce a valid output file").strip()
                 return False, details[-700:]
@@ -453,18 +380,17 @@ class LegacyRenderCore:
         out_img_ext = "jpg" if is_jpg else "png"
         if output_image_path is None:
             output_image_path = os.path.join(output_dir, f"{file_base}.{out_img_ext}")
-        temp_wav_name = (f".swarm_temp_preview_{os.getpid()}_{threading.get_ident()}.wav" if preview_only
-                         else f".swarm_temp_core_{file_base}.wav")
+        temp_wav_name = ".swarm_temp_preview.wav" if preview_only else f".swarm_temp_core_{file_base}.wav"
         temp_wav = os.path.join(output_dir, temp_wav_name)
         # Decode only the first audio stream. In particular, ignore attached album-art
         # video streams that may already exist inside an MP3 or another audio container.
         try:
             if os.path.exists(temp_wav):
                 os.remove(temp_wav)
-            decode = run_quiet(
-                ffmpeg_command("-y", "-nostdin", "-hide_banner", "-loglevel", "error",
-                               "-i", audio_path, "-map", "0:a:0", "-vn", "-ac", "1", "-ar", "11025",
-                               "-c:a", "pcm_s16le", temp_wav),
+            decode = subprocess.run(
+                ["ffmpeg", "-y", "-nostdin", "-hide_banner", "-loglevel", "error",
+                 "-i", audio_path, "-map", "0:a:0", "-vn", "-ac", "1", "-ar", "11025",
+                 "-c:a", "pcm_s16le", temp_wav],
                 stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, check=False,
             )
             if decode.returncode != 0 or not os.path.isfile(temp_wav) or os.path.getsize(temp_wav) <= 44:
@@ -505,9 +431,9 @@ class LegacyRenderCore:
             self.root.after(0, lambda: self.write_system_log(self.tr("⚠️ Track '{filename}' is too short for the selected bar count.").format(filename=file_name)))
             return
 
-        raw_heights = np.abs(audio_samples[:bars * samples_per_bar]).reshape(bars, samples_per_bar).max(axis=1)
-        max_peak = raw_heights.max() if raw_heights.max() > 0 else 1
-        normalized_heights = list((raw_heights / max_peak) * 0.9 + 0.1)
+        raw_heights = [np.max(np.abs(audio_samples[i*samples_per_bar : (i+1)*samples_per_bar])) for i in range(bars)]
+        max_peak = max(raw_heights) if max(raw_heights) > 0 else 1
+        normalized_heights = [(h / max_peak) * 0.9 + 0.1 for h in raw_heights]
 
         render_dpi = 100 if preview_only else max(1, int(setting("target_dpi", "target_dpi")))
         if render_size is not None:
@@ -519,267 +445,264 @@ class LegacyRenderCore:
 
         canvas_bg = 'none' if (setting("is_transparent", "is_transparent") and not is_jpg) else setting("bg_solid_color", "bg_solid_color")
         fig, ax = plt.subplots(figsize=(w_in, h_in), dpi=render_dpi, facecolor=canvas_bg)
-        try:
-            ax.set_facecolor(canvas_bg)
+        ax.set_facecolor(canvas_bg)
 
-            x_positions = np.arange(bars)
-
+        x_positions = np.arange(bars)
 
 
-            # THE UNIFIED MULTI-GEOMETRY WAVE RENDERING ENGINE PIPELINE
-            geom_type = setting("peak_geometry_shape", "peak_geometry_shape")
-            is_solid = setting("is_solid_color_mode", "is_solid_color_mode")
+
+        # THE UNIFIED MULTI-GEOMETRY WAVE RENDERING ENGINE PIPELINE
+        geom_type = setting("peak_geometry_shape", "peak_geometry_shape")
+        is_solid = setting("is_solid_color_mode", "is_solid_color_mode")
         
-            # Calculate a highly responsive vector border thickness based on your total bar counts
-            calculated_edge_width = 0.75 if bars > 180 else 1.2
-            # Lollipop stems stay thin, while the endpoint dots remain clearly
-            # distinguishable and scale with the spacing between bars.
-            bar_spacing_pt = (w_in * 72.0) / max(1, bars)
-            lollipop_stem_width_pt = max(0.65, bar_spacing_pt * 0.24)
-            lollipop_marker_size = max(2.0, bar_spacing_pt * 0.70)
+        # Calculate a highly responsive vector border thickness based on your total bar counts
+        calculated_edge_width = 0.75 if bars > 180 else 1.2
+        # Lollipop stems stay thin, while the endpoint dots remain clearly
+        # distinguishable and scale with the spacing between bars.
+        bar_spacing_pt = (w_in * 72.0) / max(1, bars)
+        lollipop_stem_width_pt = max(0.65, bar_spacing_pt * 0.24)
+        lollipop_marker_size = max(2.0, bar_spacing_pt * 0.70)
 
-            def draw_sliced_pointed_bar(x, height, y0, y1, color, shape, overlap=0.0):
-                """Draw a color slice while preserving the exact pointed silhouette."""
-                h = max(float(height), 1e-9)
-                # Slight overlap prevents antialiased black hairlines between adjacent slices.
-                a = max(0.0, y0 - overlap)
-                b = min(h, y1 + overlap)
-                if shape == "Spike":
-                    # A single continuous triangular silhouette from centerline to peak.
-                    w0 = 0.375 * max(0.0, 1.0 - a / h)
-                    w1 = 0.375 * max(0.0, 1.0 - b / h)
-                    ax.fill([x-w0, x+w0, x+w1, x-w1], [a, a, b, b],
-                            color=color, edgecolor='none', linewidth=0, antialiased=False)
-                    ax.fill([x-w0, x+w0, x+w1, x-w1], [-a, -a, -b, -b],
-                            color=color, edgecolor='none', linewidth=0, antialiased=False)
+        def draw_sliced_pointed_bar(x, height, y0, y1, color, shape, overlap=0.0):
+            """Draw a color slice while preserving the exact pointed silhouette."""
+            h = max(float(height), 1e-9)
+            # Slight overlap prevents antialiased black hairlines between adjacent slices.
+            a = max(0.0, y0 - overlap)
+            b = min(h, y1 + overlap)
+            if shape == "Spike":
+                # A single continuous triangular silhouette from centerline to peak.
+                w0 = 0.375 * max(0.0, 1.0 - a / h)
+                w1 = 0.375 * max(0.0, 1.0 - b / h)
+                ax.fill([x-w0, x+w0, x+w1, x-w1], [a, a, b, b],
+                        color=color, edgecolor='none', linewidth=0, antialiased=False)
+                ax.fill([x-w0, x+w0, x+w1, x-w1], [-a, -a, -b, -b],
+                        color=color, edgecolor='none', linewidth=0, antialiased=False)
 
-            def draw_arrow_spear(x, height, color, stem_width=0.13, head_half_width=0.22):
-                """Draw a clear arrowhead on a slightly thicker stem."""
-                h = max(float(height), 1e-9)
-                # Keep the arrowhead visibly triangular at both high and low bar counts.
-                head_h = min(h * 0.16, 0.16, h * 0.35)
-                stem_end = max(0.0, h - head_h)
-                ax.bar(x, stem_end, width=stem_width, color=color, bottom=0,
-                       edgecolor='none', linewidth=0)
-                ax.bar(x, stem_end, width=stem_width, color=color, bottom=-stem_end,
-                       edgecolor='none', linewidth=0)
-                ax.fill([x-head_half_width, x, x+head_half_width],
-                        [stem_end, h, stem_end], color=color, edgecolor='none', linewidth=0)
-                ax.fill([x-head_half_width, x, x+head_half_width],
-                        [-stem_end, -h, -stem_end], color=color, edgecolor='none', linewidth=0)
+        def draw_arrow_spear(x, height, color, stem_width=0.13, head_half_width=0.22):
+            """Draw a clear arrowhead on a slightly thicker stem."""
+            h = max(float(height), 1e-9)
+            # Keep the arrowhead visibly triangular at both high and low bar counts.
+            head_h = min(h * 0.16, 0.16, h * 0.35)
+            stem_end = max(0.0, h - head_h)
+            ax.bar(x, stem_end, width=stem_width, color=color, bottom=0,
+                   edgecolor='none', linewidth=0)
+            ax.bar(x, stem_end, width=stem_width, color=color, bottom=-stem_end,
+                   edgecolor='none', linewidth=0)
+            ax.fill([x-head_half_width, x, x+head_half_width],
+                    [stem_end, h, stem_end], color=color, edgecolor='none', linewidth=0)
+            ax.fill([x-head_half_width, x, x+head_half_width],
+                    [-stem_end, -h, -stem_end], color=color, edgecolor='none', linewidth=0)
 
-            if is_solid:
-                # Solid mode has exactly one active node; pass a single color to Matplotlib.
-                target_color = setting("color_nodes", "color_nodes")[0]
-                if geom_type == "Capsule":
-                    # Rectangles do not support rounded bar ends reliably. Draw each
-                    # symmetric bar as a round-capped vertical stroke instead.
-                    capsule_width_pt = max(1.0, (w_in * 72.0 / max(1, bars)) * 0.75)
-                    for i, height in enumerate(normalized_heights):
-                        ax.plot([x_positions[i], x_positions[i]], [-height, height],
-                                color=target_color, linewidth=capsule_width_pt,
-                                solid_capstyle="round", antialiased=True)
-                elif geom_type == "Lollipop":
-                    for i, height in enumerate(normalized_heights):
-                        ax.plot([x_positions[i], x_positions[i]], [-height, height],
-                                color=target_color, linewidth=lollipop_stem_width_pt,
-                                solid_capstyle="butt", antialiased=True)
-                        ax.plot([x_positions[i], x_positions[i]], [height, -height],
-                                marker='o', markersize=lollipop_marker_size,
-                                color=target_color, markeredgecolor='none', linestyle='None')
-                elif geom_type == "Spike":
-                    for i, height in enumerate(normalized_heights):
-                        ax.fill([x_positions[i]-0.375, x_positions[i], x_positions[i]+0.375], [0, height, 0], color=target_color, edgecolor='none')
-                        ax.fill([x_positions[i]-0.375, x_positions[i], x_positions[i]+0.375], [0, -height, 0], color=target_color, edgecolor='none')
-                elif geom_type == "ArrowSpear":
-                    for i, height in enumerate(normalized_heights):
-                        draw_arrow_spear(x_positions[i], height, target_color)
-                else:
-                    ax.bar(x_positions, normalized_heights, width=0.75, color=target_color, bottom=0, edgecolor='none')
-                    ax.bar(x_positions, normalized_heights, width=0.75, color=target_color, bottom=-np.array(normalized_heights), edgecolor='none')
-            
-            elif setting("gradient_direction", "gradient_direction") == "Horizontal":
+        if is_solid:
+            # Solid mode has exactly one active node; pass a single color to Matplotlib.
+            target_color = setting("color_nodes", "color_nodes")[0]
+            if geom_type == "Capsule":
+                # Rectangles do not support rounded bar ends reliably. Draw each
+                # symmetric bar as a round-capped vertical stroke instead.
+                capsule_width_pt = max(1.0, (w_in * 72.0 / max(1, bars)) * 0.75)
                 for i, height in enumerate(normalized_heights):
-                    position_ratio = i / (bars - 1) if bars > 1 else 0
-                    bar_color = cmap_engine(position_ratio)
+                    ax.plot([x_positions[i], x_positions[i]], [-height, height],
+                            color=target_color, linewidth=capsule_width_pt,
+                            solid_capstyle="round", antialiased=True)
+            elif geom_type == "Lollipop":
+                for i, height in enumerate(normalized_heights):
+                    ax.plot([x_positions[i], x_positions[i]], [-height, height],
+                            color=target_color, linewidth=lollipop_stem_width_pt,
+                            solid_capstyle="butt", antialiased=True)
+                    ax.plot([x_positions[i], x_positions[i]], [height, -height],
+                            marker='o', markersize=lollipop_marker_size,
+                            color=target_color, markeredgecolor='none', linestyle='None')
+            elif geom_type == "Spike":
+                for i, height in enumerate(normalized_heights):
+                    ax.fill([x_positions[i]-0.375, x_positions[i], x_positions[i]+0.375], [0, height, 0], color=target_color, edgecolor='none')
+                    ax.fill([x_positions[i]-0.375, x_positions[i], x_positions[i]+0.375], [0, -height, 0], color=target_color, edgecolor='none')
+            elif geom_type == "ArrowSpear":
+                for i, height in enumerate(normalized_heights):
+                    draw_arrow_spear(x_positions[i], height, target_color)
+            else:
+                ax.bar(x_positions, normalized_heights, width=0.75, color=target_color, bottom=0, edgecolor='none')
+                ax.bar(x_positions, normalized_heights, width=0.75, color=target_color, bottom=-np.array(normalized_heights), edgecolor='none')
+            
+        elif setting("gradient_direction", "gradient_direction") == "Horizontal":
+            for i, height in enumerate(normalized_heights):
+                position_ratio = i / (bars - 1) if bars > 1 else 0
+                bar_color = cmap_engine(position_ratio)
                 
-                    if geom_type == "Capsule":
-                        # Round-capped strokes create genuine rounded tips in horizontal flow.
-                        capsule_width_pt = max(1.0, (w_in * 72.0 / max(1, bars)) * 0.75)
-                        ax.plot([x_positions[i], x_positions[i]], [-height, height],
-                                color=bar_color, linewidth=capsule_width_pt,
-                                solid_capstyle="round", antialiased=True)
-                    elif geom_type == "Lollipop":
-                        ax.plot([x_positions[i], x_positions[i]], [-height, height],
-                                color=bar_color, linewidth=lollipop_stem_width_pt,
-                                solid_capstyle="butt", antialiased=True)
-                        ax.plot([x_positions[i], x_positions[i]], [height, -height],
-                                marker='o', markersize=lollipop_marker_size,
-                                color=bar_color, markeredgecolor='none', linestyle='None')
-                    elif geom_type == "Spike":
-                        ax.fill([x_positions[i]-0.375, x_positions[i], x_positions[i]+0.375], [0, height, 0], color=bar_color, edgecolor='none')
-                        ax.fill([x_positions[i]-0.375, x_positions[i], x_positions[i]+0.375], [0, -height, 0], color=bar_color, edgecolor='none')
-                    elif geom_type == "ArrowSpear":
-                        draw_arrow_spear(x_positions[i], height, bar_color)
-                    else:
-                        ax.bar(x_positions[i], height, width=0.75, color=bar_color, bottom=0, edgecolor='none')
-                        ax.bar(x_positions[i], height, width=0.75, color=bar_color, bottom=-height, edgecolor='none')
+                if geom_type == "Capsule":
+                    # Round-capped strokes create genuine rounded tips in horizontal flow.
+                    capsule_width_pt = max(1.0, (w_in * 72.0 / max(1, bars)) * 0.75)
+                    ax.plot([x_positions[i], x_positions[i]], [-height, height],
+                            color=bar_color, linewidth=capsule_width_pt,
+                            solid_capstyle="round", antialiased=True)
+                elif geom_type == "Lollipop":
+                    ax.plot([x_positions[i], x_positions[i]], [-height, height],
+                            color=bar_color, linewidth=lollipop_stem_width_pt,
+                            solid_capstyle="butt", antialiased=True)
+                    ax.plot([x_positions[i], x_positions[i]], [height, -height],
+                            marker='o', markersize=lollipop_marker_size,
+                            color=bar_color, markeredgecolor='none', linestyle='None')
+                elif geom_type == "Spike":
+                    ax.fill([x_positions[i]-0.375, x_positions[i], x_positions[i]+0.375], [0, height, 0], color=bar_color, edgecolor='none')
+                    ax.fill([x_positions[i]-0.375, x_positions[i], x_positions[i]+0.375], [0, -height, 0], color=bar_color, edgecolor='none')
+                elif geom_type == "ArrowSpear":
+                    draw_arrow_spear(x_positions[i], height, bar_color)
+                else:
+                    ax.bar(x_positions[i], height, width=0.75, color=bar_color, bottom=0, edgecolor='none')
+                    ax.bar(x_positions[i], height, width=0.75, color=bar_color, bottom=-height, edgecolor='none')
                 
+
+        else:
+            # Option C: Vertical Slices Peak Meter Flow Mode
+            slices = setting("slices_val", "slices_val")
+            
+            if geom_type == "Capsule":
+                #  TRUE CAPSULE FIX: Uses native coordinate grid widths instead of pixel blocks
+                # This guarantees bars never smash together, leaving clean, distinct pill gaps!
+                for i, height in enumerate(normalized_heights):
+                    y_coords = np.linspace(0, height, slices)
+                    
+                    # Calculate a precise relative width that exactly mimics a 0.75 bar width setting
+                    native_scale_width = (fig.get_size_inches()[0] * fig.dpi) / bars * 0.55
+                    native_scale_width = max(1.0, native_scale_width) # Protect low-res runs from vanishing
+                    
+                    for s in range(len(y_coords) - 1):
+                        b_val = y_coords[s]
+                        t_val = y_coords[s + 1]
+                        slice_color = cmap_engine(b_val)
+                        
+                        # Draw top track pill components cleanly
+                        ax.plot([x_positions[i], x_positions[i]], [b_val, t_val], 
+                                color=slice_color, solid_capstyle='round', linewidth=native_scale_width)
+                        # Draw bottom mirroring pill components cleanly
+                        ax.plot([x_positions[i], x_positions[i]], [-b_val, -t_val], 
+                                color=slice_color, solid_capstyle='round', linewidth=native_scale_width)
+
 
             else:
-                # Option C: Vertical Slices Peak Meter Flow Mode
-                slices = setting("slices_val", "slices_val")
-            
-                if geom_type == "Capsule":
-                    #  TRUE CAPSULE FIX: Uses native coordinate grid widths instead of pixel blocks
-                    # This guarantees bars never smash together, leaving clean, distinct pill gaps!
+                # Lollipop follows the user's slice-resolution setting below 200,
+                # preserving visible color bands. At 200, switch to a dense gradient
+                # for smooth stems while keeping the same lollipop geometry.
+                if geom_type == "Lollipop":
+                    configured_slices = max(2, int(slices))
                     for i, height in enumerate(normalized_heights):
-                        y_coords = np.linspace(0, height, slices)
-                    
-                        # Calculate a precise relative width that exactly mimics a 0.75 bar width setting
-                        native_scale_width = (fig.get_size_inches()[0] * fig.dpi) / bars * 0.55
-                        native_scale_width = max(1.0, native_scale_width) # Protect low-res runs from vanishing
-                    
-                        for s in range(len(y_coords) - 1):
-                            b_val = y_coords[s]
-                            t_val = y_coords[s + 1]
-                            slice_color = cmap_engine(b_val)
-                        
-                            # Draw top track pill components cleanly
-                            ax.plot([x_positions[i], x_positions[i]], [b_val, t_val], 
-                                    color=slice_color, solid_capstyle='round', linewidth=native_scale_width)
-                            # Draw bottom mirroring pill components cleanly
-                            ax.plot([x_positions[i], x_positions[i]], [-b_val, -t_val], 
-                                    color=slice_color, solid_capstyle='round', linewidth=native_scale_width)
-
-
+                        if configured_slices < 200:
+                            segment_count = configured_slices - 1
+                        else:
+                            segment_count = min(768, max(256, int(h_in * setting("target_dpi", "target_dpi") * height)))
+                        y_steps = np.linspace(0.0, height, segment_count + 1)
+                        upper_segments = [[(x_positions[i], y_steps[j]),
+                                           (x_positions[i], y_steps[j + 1])]
+                                          for j in range(segment_count)]
+                        lower_segments = [[(x_positions[i], -y_steps[j]),
+                                           (x_positions[i], -y_steps[j + 1])]
+                                          for j in range(segment_count)]
+                        segment_colors = [cmap_engine((y_steps[j] + y_steps[j + 1]) / 2.0)
+                                          for j in range(segment_count)]
+                        ax.add_collection(LineCollection(
+                            upper_segments, colors=segment_colors,
+                            linewidths=lollipop_stem_width_pt, antialiaseds=True))
+                        ax.add_collection(LineCollection(
+                            lower_segments, colors=segment_colors,
+                            linewidths=lollipop_stem_width_pt, antialiaseds=True))
+                        peak_color = cmap_engine(height)
+                        ax.plot([x_positions[i]], [height], marker='o', linestyle='None',
+                                markersize=lollipop_marker_size, color=peak_color,
+                                markeredgecolor='none')
+                        ax.plot([x_positions[i]], [-height], marker='o', linestyle='None',
+                                markersize=lollipop_marker_size, color=peak_color,
+                                markeredgecolor='none')
                 else:
-                    # Lollipop follows the user's slice-resolution setting below 200,
-                    # preserving visible color bands. At 200, switch to a dense gradient
-                    # for smooth stems while keeping the same lollipop geometry.
-                    if geom_type == "Lollipop":
-                        configured_slices = max(2, int(slices))
-                        for i, height in enumerate(normalized_heights):
-                            if configured_slices < 200:
-                                segment_count = configured_slices - 1
-                            else:
-                                segment_count = min(768, max(256, int(h_in * setting("target_dpi", "target_dpi") * height)))
-                            y_steps = np.linspace(0.0, height, segment_count + 1)
-                            upper_segments = [[(x_positions[i], y_steps[j]),
-                                               (x_positions[i], y_steps[j + 1])]
-                                              for j in range(segment_count)]
-                            lower_segments = [[(x_positions[i], -y_steps[j]),
-                                               (x_positions[i], -y_steps[j + 1])]
-                                              for j in range(segment_count)]
-                            segment_colors = [cmap_engine((y_steps[j] + y_steps[j + 1]) / 2.0)
-                                              for j in range(segment_count)]
-                            ax.add_collection(LineCollection(
-                                upper_segments, colors=segment_colors,
-                                linewidths=lollipop_stem_width_pt, antialiaseds=True))
-                            ax.add_collection(LineCollection(
-                                lower_segments, colors=segment_colors,
-                                linewidths=lollipop_stem_width_pt, antialiaseds=True))
-                            peak_color = cmap_engine(height)
-                            ax.plot([x_positions[i]], [height], marker='o', linestyle='None',
-                                    markersize=lollipop_marker_size, color=peak_color,
-                                    markeredgecolor='none')
-                            ax.plot([x_positions[i]], [-height], marker='o', linestyle='None',
-                                    markersize=lollipop_marker_size, color=peak_color,
-                                    markeredgecolor='none')
-                    else:
-                        # Other geometry styles retain their existing slice-based rendering.
-                        for i, height in enumerate(normalized_heights):
-                            y_steps = np.linspace(0, height, slices)
+                    # Other geometry styles retain their existing slice-based rendering.
+                    for i, height in enumerate(normalized_heights):
+                        y_steps = np.linspace(0, height, slices)
 
-                            # For vertical-flow Sharp Spikes, keep the existing horizontal
-                            # gradient bands but clip them to one continuous triangular path.
-                            # This prevents the outer edges from becoming stair-stepped when
-                            # the gradient slice resolution is low, without changing the colors.
-                            if geom_type == "Spike":
-                                x = x_positions[i]
-                                half_width = 0.375
-                                upper_triangle = Polygon(
-                                    [(x - half_width, 0), (x, height), (x + half_width, 0)],
-                                    closed=True, facecolor='none', edgecolor='none',
-                                    transform=ax.transData)
-                                lower_triangle = Polygon(
-                                    [(x - half_width, 0), (x, -height), (x + half_width, 0)],
-                                    closed=True, facecolor='none', edgecolor='none',
-                                    transform=ax.transData)
-                                ax.add_patch(upper_triangle)
-                                ax.add_patch(lower_triangle)
-                                for s in range(len(y_steps) - 1):
-                                    b_val = y_steps[s]
-                                    t_val = y_steps[s + 1]
-                                    slice_color = cmap_engine(b_val)
-                                    upper_band = Rectangle(
-                                        (x - half_width, b_val), 2 * half_width,
-                                        t_val - b_val, facecolor=slice_color,
-                                        edgecolor='none', linewidth=0, antialiased=False)
-                                    lower_band = Rectangle(
-                                        (x - half_width, -t_val), 2 * half_width,
-                                        t_val - b_val, facecolor=slice_color,
-                                        edgecolor='none', linewidth=0, antialiased=False)
-                                    ax.add_patch(upper_band)
-                                    ax.add_patch(lower_band)
-                                    upper_band.set_clip_path(upper_triangle)
-                                    lower_band.set_clip_path(lower_triangle)
-                                continue
-
+                        # For vertical-flow Sharp Spikes, keep the existing horizontal
+                        # gradient bands but clip them to one continuous triangular path.
+                        # This prevents the outer edges from becoming stair-stepped when
+                        # the gradient slice resolution is low, without changing the colors.
+                        if geom_type == "Spike":
+                            x = x_positions[i]
+                            half_width = 0.375
+                            upper_triangle = Polygon(
+                                [(x - half_width, 0), (x, height), (x + half_width, 0)],
+                                closed=True, facecolor='none', edgecolor='none',
+                                transform=ax.transData)
+                            lower_triangle = Polygon(
+                                [(x - half_width, 0), (x, -height), (x + half_width, 0)],
+                                closed=True, facecolor='none', edgecolor='none',
+                                transform=ax.transData)
+                            ax.add_patch(upper_triangle)
+                            ax.add_patch(lower_triangle)
                             for s in range(len(y_steps) - 1):
                                 b_val = y_steps[s]
                                 t_val = y_steps[s + 1]
                                 slice_color = cmap_engine(b_val)
+                                upper_band = Rectangle(
+                                    (x - half_width, b_val), 2 * half_width,
+                                    t_val - b_val, facecolor=slice_color,
+                                    edgecolor='none', linewidth=0, antialiased=False)
+                                lower_band = Rectangle(
+                                    (x - half_width, -t_val), 2 * half_width,
+                                    t_val - b_val, facecolor=slice_color,
+                                    edgecolor='none', linewidth=0, antialiased=False)
+                                ax.add_patch(upper_band)
+                                ax.add_patch(lower_band)
+                                upper_band.set_clip_path(upper_triangle)
+                                lower_band.set_clip_path(lower_triangle)
+                            continue
 
-                                if geom_type == "ArrowSpear":
-                                    # Gradient stem slices stay narrow; only the outer peak gets
-                                    # the small arrowhead, matching the original reference design.
-                                    stem_width = 0.13
-                                    head_half_width = 0.22
-                                    # Match the solid/horizontal arrowhead proportions.
-                                    head_h = min(height * 0.16, 0.16, height * 0.35)
-                                    stem_end = max(0.0, height - head_h)
-                                    if b_val < stem_end:
-                                        sb = b_val
-                                        st = min(t_val, stem_end)
-                                        if st > sb:
-                                            ax.bar(x_positions[i], st - sb, width=stem_width,
-                                                   color=slice_color, bottom=sb, edgecolor='none', linewidth=0)
-                                            ax.bar(x_positions[i], st - sb, width=stem_width,
-                                                   color=slice_color, bottom=-st, edgecolor='none', linewidth=0)
-                                    # Draw each tip once after all stem slices (last slice only).
-                                    if s == len(y_steps) - 2:
-                                        tip_color = cmap_engine(height)
-                                        ax.fill([x_positions[i]-head_half_width, x_positions[i],
-                                                 x_positions[i]+head_half_width],
-                                                [stem_end, height, stem_end],
-                                                color=tip_color, edgecolor='none', linewidth=0)
-                                        ax.fill([x_positions[i]-head_half_width, x_positions[i],
-                                                 x_positions[i]+head_half_width],
-                                                [-stem_end, -height, -stem_end],
-                                                color=tip_color, edgecolor='none', linewidth=0)
-                                else:
-                                    ax.bar(x_positions[i], t_val - b_val, width=0.75, color=slice_color, bottom=b_val, edgecolor='none')
-                                    ax.bar(x_positions[i], t_val - b_val, width=0.75, color=slice_color, bottom=-t_val, edgecolor='none')
+                        for s in range(len(y_steps) - 1):
+                            b_val = y_steps[s]
+                            t_val = y_steps[s + 1]
+                            slice_color = cmap_engine(b_val)
+
+                            if geom_type == "ArrowSpear":
+                                # Gradient stem slices stay narrow; only the outer peak gets
+                                # the small arrowhead, matching the original reference design.
+                                stem_width = 0.13
+                                head_half_width = 0.22
+                                # Match the solid/horizontal arrowhead proportions.
+                                head_h = min(height * 0.16, 0.16, height * 0.35)
+                                stem_end = max(0.0, height - head_h)
+                                if b_val < stem_end:
+                                    sb = b_val
+                                    st = min(t_val, stem_end)
+                                    if st > sb:
+                                        ax.bar(x_positions[i], st - sb, width=stem_width,
+                                               color=slice_color, bottom=sb, edgecolor='none', linewidth=0)
+                                        ax.bar(x_positions[i], st - sb, width=stem_width,
+                                               color=slice_color, bottom=-st, edgecolor='none', linewidth=0)
+                                # Draw each tip once after all stem slices (last slice only).
+                                if s == len(y_steps) - 2:
+                                    tip_color = cmap_engine(height)
+                                    ax.fill([x_positions[i]-head_half_width, x_positions[i],
+                                             x_positions[i]+head_half_width],
+                                            [stem_end, height, stem_end],
+                                            color=tip_color, edgecolor='none', linewidth=0)
+                                    ax.fill([x_positions[i]-head_half_width, x_positions[i],
+                                             x_positions[i]+head_half_width],
+                                            [-stem_end, -height, -stem_end],
+                                            color=tip_color, edgecolor='none', linewidth=0)
+                            else:
+                                ax.bar(x_positions[i], t_val - b_val, width=0.75, color=slice_color, bottom=b_val, edgecolor='none')
+                                ax.bar(x_positions[i], t_val - b_val, width=0.75, color=slice_color, bottom=-t_val, edgecolor='none')
 
 
    
-            ax.set_ylim(-1.1, 1.1)
-            ax.set_xlim(-1, bars)
-            ax.axis('off')
-            fig.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
+        ax.set_ylim(-1.1, 1.1)
+        ax.set_xlim(-1, bars)
+        ax.axis('off')
+        fig.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
 
-            try:
-                fig.savefig(output_image_path, dpi=render_dpi, pad_inches=0, transparent=(setting("is_transparent", "is_transparent") and not is_jpg))
-            finally:
-                fig.clear()
-                plt.close(fig)
-                # Release the decoded audio buffers for this track before the next one.
-                audio_samples = raw_bytes = raw_heights = normalized_heights = None
-                gc.collect()
-        except BaseException:
-            plt.close(fig)  # drawing failed before the save/cleanup block
-            raise
+        try:
+            fig.savefig(output_image_path, dpi=render_dpi, pad_inches=0, transparent=(setting("is_transparent", "is_transparent") and not is_jpg))
+        finally:
+            fig.clear()
+            plt.close(fig)
+            del fig, ax
+            # Release the decoded audio buffers for this track before the next one.
+            audio_samples = raw_bytes = raw_heights = normalized_heights = None
+            gc.collect()
         if preview_only:
             return os.path.isfile(output_image_path) and os.path.getsize(output_image_path) > 0
 
@@ -886,10 +809,10 @@ class LegacyRenderCore:
             # otherwise may treat as a video stream during WAV conversion.
             if os.path.exists(temp_wav):
                 os.remove(temp_wav)
-            decode = run_quiet(
-                ffmpeg_command("-y", "-nostdin", "-hide_banner", "-loglevel", "error",
-                               "-i", audio_path, "-map", "0:a:0", "-vn", "-ac", "1", "-ar", "11025",
-                               "-c:a", "pcm_s16le", temp_wav),
+            decode = subprocess.run(
+                ["ffmpeg", "-y", "-nostdin", "-hide_banner", "-loglevel", "error",
+                 "-i", audio_path, "-map", "0:a:0", "-vn", "-ac", "1", "-ar", "11025",
+                 "-c:a", "pcm_s16le", temp_wav],
                 stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, check=False,
             )
             if decode.returncode != 0 or not os.path.isfile(temp_wav) or os.path.getsize(temp_wav) <= 44:
@@ -939,8 +862,8 @@ class LegacyRenderCore:
                 solid_color = setting("color_nodes", "color_nodes")[0]
             else:
                 stops = setting("color_nodes", "color_nodes").copy()
-                #if setting("reverse_color_map", "reverse_color_map"):
-                #    stops.reverse()
+                if setting("reverse_color_map", "reverse_color_map"):
+                    stops.reverse()
                 color_map = LinearSegmentedColormap.from_list('swarm_circular_grad', stops)
                 solid_color = setting("color_nodes", "color_nodes")[0]
 

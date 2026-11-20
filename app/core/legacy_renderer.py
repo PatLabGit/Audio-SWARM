@@ -11,9 +11,8 @@ from pathlib import Path
 from types import SimpleNamespace
 import shutil
 import tempfile
+import re
 from matplotlib.colors import LinearSegmentedColormap
-
-from .models import ProcessingResult
 
 
 def _core():
@@ -37,6 +36,8 @@ class LegacyRendererAdapter:
         self.logger = logger or (lambda _message: None)
         self.popup = popup
         self.translator = translator or (lambda text: text)
+        self._batch_log_context = None
+        self._batch_circular_mode = None
         extra = dict(getattr(settings, "extra", {}) or {})
         stops = list(getattr(settings, "gradient_stops", ()) or (getattr(settings, "solid_color", "#ffffff"),))
         if getattr(settings, "reverse_gradient", False) and not getattr(settings, "solid_color_mode", False):
@@ -91,8 +92,43 @@ class LegacyRendererAdapter:
     def tr(self, text):
         return self.translator(text)
 
+    def set_batch_log_context(self, source_path, audio_path, circular_mode=None):
+        """Set per-track context for batch logs so recursive/duplicate names are identifiable."""
+        if self.single_file:
+            self._batch_log_context = None
+            self._batch_circular_mode = circular_mode
+            return
+        source_path, audio_path = Path(source_path), Path(audio_path)
+        try:
+            relative = audio_path.relative_to(source_path) if source_path.is_dir() else audio_path.name
+        except ValueError:
+            relative = audio_path.name
+        self._batch_log_context = str(relative)
+        self._batch_circular_mode = circular_mode
+
     def write_system_log(self, message):
-        self.logger(str(message))
+        message = str(message)
+        if not self.single_file:
+            # The batch adapter renames the intermediate *_with_art outputs to the
+            # source stem after embedding. Log the final batch filename instead.
+            message = message.replace("_with_art", "")
+            # Circular renderers also log their intermediate mode suffix, while
+            # batch output images are normalized to the source stem.
+            if message.startswith("📸 Circular image generated:"):
+                mode_suffix = {
+                    "waveform": "_circular",
+                    "spectrum": "_radial_spectrum",
+                    "minimal": "_minimal_circular",
+                }.get(self._batch_circular_mode, "_circular")
+                if mode_suffix:
+                    message = re.sub(
+                        re.escape(mode_suffix) + r"(?=\.[^.]+$)",
+                        "",
+                        message,
+                    )
+            if self._batch_log_context:
+                message = f"[{self._batch_log_context}] {message}"
+        self.logger(message)
 
     def show_themed_popup(self, title, message, kind="info"):
         if self.popup is not None:
@@ -111,6 +147,7 @@ class LegacyRendererAdapter:
 
     def render_waveform(self, audio_path: str | Path, output_dir: str | Path):
         from matplotlib import pyplot as plt
+        from .models import ProcessingResult
 
         audio_path, output_dir = Path(audio_path), Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -179,6 +216,7 @@ class LegacyRendererAdapter:
 
     def render_waveform_preview(self, audio_path: str | Path, output_dir: str | Path, output_image_path: str | Path):
         """Render one preview through the original engine's drawing pipeline only."""
+        from pathlib import Path
         audio_path, output_dir, output_image_path = Path(audio_path), Path(output_dir), Path(output_image_path)
         output_dir.mkdir(parents=True, exist_ok=True)
         stops = list(self.color_nodes)
@@ -214,6 +252,8 @@ class LegacyRendererAdapter:
 
     def render_circular_preview(self, audio_path: str | Path, output_dir: str | Path, mode: str, render_size: int, output_image_path: str | Path):
         """Render a circular preview through the original engine's preview-only branch."""
+        from pathlib import Path
+        from .models import ProcessingResult
         audio_path, output_dir, output_image_path = Path(audio_path), Path(output_dir), Path(output_image_path)
         output_dir.mkdir(parents=True, exist_ok=True)
         self.circular_mode = _Value(mode)
@@ -249,9 +289,11 @@ class LegacyRendererAdapter:
 
     def render_circular(self, audio_path: str | Path, output_dir: str | Path, mode: str):
         from matplotlib import pyplot as plt
+        from .models import ProcessingResult
         audio_path, output_dir = Path(audio_path), Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
         self.circular_mode = _Value(mode)
+        self._batch_circular_mode = mode
         scratch_dir = Path(tempfile.mkdtemp(prefix=".swarm_single_", dir=output_dir)) if self.single_file else output_dir
         try:
             _core().execute_single_circular_waveform(

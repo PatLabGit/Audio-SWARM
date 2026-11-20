@@ -1,13 +1,12 @@
 """Audio decoding utilities used by Audio-SWARM renderers."""
 from __future__ import annotations
 
+import subprocess
 import tempfile
 import wave
 from pathlib import Path
 
 import numpy as np
-
-from .process import ffmpeg_command, run_quiet
 
 
 def decode_mono_samples(audio_path: str | Path, sample_rate: int = 11025) -> np.ndarray:
@@ -18,13 +17,13 @@ def decode_mono_samples(audio_path: str | Path, sample_rate: int = 11025) -> np.
     source = Path(audio_path)
     with tempfile.TemporaryDirectory(prefix="audio_swarm_") as temporary_directory:
         decoded_path = Path(temporary_directory) / "decoded.wav"
-        command = ffmpeg_command(
-            "-y", "-nostdin", "-hide_banner", "-loglevel", "error",
+        command = [
+            "ffmpeg", "-y", "-nostdin", "-hide_banner", "-loglevel", "error",
             "-i", str(source), "-map", "0:a:0", "-vn", "-ac", "1", "-ar",
             str(sample_rate), "-c:a", "pcm_s16le", str(decoded_path),
-        )
+        ]
         try:
-            process = run_quiet(command, capture_output=True, text=True, check=False)
+            process = subprocess.run(command, capture_output=True, text=True, check=False)
         except OSError as error:
             raise RuntimeError("FFmpeg could not be started.") from error
         if process.returncode != 0 or not decoded_path.is_file():
