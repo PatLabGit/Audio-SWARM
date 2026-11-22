@@ -180,8 +180,9 @@ class LegacyRendererAdapter:
             if image_path.is_file():
                 image_path.replace(final_image)
                 image_path = final_image
-            else:
-                image_path = final_image if final_image.is_file() else image_path
+            # Do not fall back to a pre-existing image when the current render
+            # intentionally removed its standalone image (keep-images unchecked).
+            # This avoids making an old image appear to have survived this run.
             if embedded.is_file():
                 embedded.replace(final_embedded)
                 embedded = final_embedded
@@ -305,7 +306,9 @@ class LegacyRendererAdapter:
             return ProcessingResult(audio_path, None, False, str(exc))
         finally:
             plt.close("all")
-        suffix_name = {"waveform": "circular", "spectrum": "radial_spectrum", "minimal": "minimal_circular"}.get(mode, "circular")
+        # All circular modes use the same output-image suffix. Rendering mode
+        # is independent of the filename.
+        suffix_name = "with_art"
         suffix = ".jpg" if getattr(self.settings, "output_format", "PNG") == "JPG" else ".png"
         image_path = scratch_dir / f"{audio_path.stem}_{suffix_name}{suffix}"
         embedded = scratch_dir / f"{audio_path.stem}_with_art{audio_path.suffix.lower()}"

@@ -123,8 +123,9 @@ class LocalizationMixin:
             self.translations = {}
 
     def tr(self, text):
-        """Return the translated string, or the original English text as fallback."""
-        return self.translations.get(text, text)
+        """Return a non-empty translation, falling back to source text."""
+        translated = self.translations.get(text)
+        return translated if isinstance(translated, str) and translated.strip() else text
 
     def change_language(self, _event=None):
         """Reload the interface in the selected language while preserving settings."""

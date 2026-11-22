@@ -794,11 +794,9 @@ class LegacyRenderCore:
         is_jpg = setting("format", "format_menu") == "JPG" and not preview_only
         image_ext = "jpg" if is_jpg else "png"
         mode = mode or setting("circular_mode", "circular_mode")
-        suffix = {
-            "waveform": "circular",
-            "spectrum": "radial_spectrum",
-            "minimal": "minimal_circular",
-        }.get(mode, "circular")
+        # Circular output artwork uses one consistent suffix for all modes.
+        # The selected mode affects rendering, not output-file naming.
+        suffix = "with_art"
         if output_image_path is None:
             output_image_path = os.path.join(output_dir, f"{file_base}_{suffix}.{image_ext}")
         temp_wav = os.path.join(output_dir, f".swarm_temp_{file_base}_{suffix}.wav")
@@ -1333,7 +1331,10 @@ class LegacyRenderCore:
                     self.root.after(0, lambda fn=os.path.basename(embedded_output): self.write_system_log(
                         self.tr("Raw AAC has no standard cover-art container; created an M4A file -> {filename}").format(filename=fn)
                     ))
-                if not self.keep_standalone_png.get():
+                # WAV cannot carry portable embedded cover artwork, so its
+                # standalone image must always be retained. For other formats,
+                # remove it only when the user opted not to keep standalone images.
+                if ext != '.wav' and not setting("keep_standalone_png", "keep_standalone_png"):
                     try:
                         os.remove(output_image_path)
                     except OSError:

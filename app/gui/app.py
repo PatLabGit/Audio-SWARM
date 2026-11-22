@@ -8,6 +8,7 @@ import traceback
 import tkinter as tk
 from app.gui.localization import LocalizationMixin
 from app.gui.help_about import HelpAboutMixin
+from app.localization_tool.translation_editor import TranslationEditorMixin
 from app.gui.components import ComponentsMixin
 from app.gui.main_window import MainWindowMixin
 from app.gui.sound_tab import SoundTabMixin
@@ -19,7 +20,7 @@ from app.core.process import ffmpeg_executable
 from app.gui.video_tab import VideoPosterTab
 
 
-class AudioSWARMApp(LocalizationMixin, HelpAboutMixin, ComponentsMixin, MainWindowMixin,
+class AudioSWARMApp(LocalizationMixin, HelpAboutMixin, TranslationEditorMixin, ComponentsMixin, MainWindowMixin,
                     SoundTabMixin, CircularTabMixin, ArtworkTabMixin, VideoPosterTab, ProcessingMixin):
     # Ensure this variable name is correct and no duplicate assignments happen here:
     DROP_AUDIO_EXTENSIONS = (".mp3", ".ogg", ".oga", ".opus", ".wav", ".flac", ".m4a", ".aac", ".aiff", ".aif")

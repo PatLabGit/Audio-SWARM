@@ -29,6 +29,8 @@ Whether you're creating a waveform album cover art, preparing artwork for profes
 - [9. Colors and geometry reference](#colors-geometry)
 - [10. Troubleshooting](#troubleshooting)
 - [11. Languages and contributions](#languages-contributions)
+- [12. Audio-SWARM's translation tool (YES, you can translate here)](#translation-tool)
+- [13. How to submit your translation](#submit-translation)
 
 ## 1. What is Audio-SWARM? <!-- anchor: what-is-swarm -->
 
@@ -264,7 +266,123 @@ Interface translations are stored as JSON files in `languages/`.
 Help documents are Markdown files in `help/`, and
 About documents are Markdown files in `about/`.
 Both JSON and Markdown files use the language code as the filename, for example `en.md` = English, `fr.md` = French, or `ja.md` = Japanese.
-To contribute a translation, **copy the English file from the relevant folder**, translate its prose and headings, and save it using the correct language code. Keep Help HTML anchor comments and table-of-contents targets unchanged so section links continue to work.
+
+To contribute a translation, you can do it directly in the Audio-SWARM user interface in Help / About / Translate -> Translation's tab.
+
+## 12. Audio-SWARM's translation tool  <!-- anchor: translation-tool -->
+
+[Submit your translation on GitHub](https://github.com/PatLabGit/Audio-SWARM/discussions/1).
+
+The Translation tool allows you to translate Audio-SWARM into another language, or correct an existing translation, directly from the application, which also allows you to check immediately if the length of a translated function is not too long. And you do not need to edit JSON files manually.
+
+![The translation tool inside Audio-SWARM](images/english-to-french.jpg "align=center caption=alt")
+
+### Creating a translation
+
+Click **New Translation** to create a translation project.
+
+A dialog will appear with two language selectors:
+
+![Create a new translation](images/new-translation.jpg "align=center caption=alt")
+
+- **Translate from:** The original language you want to translate from. English is recommended, but you can select another language. This list contains only languages for which a translation already exists in Audio-SWARM.
+- **Translate to:** The language you want to translate into. The list contains 172 languages available in the language dictionary.
+
+Once you have selected both languages, click **OK** to create the translation.
+
+Audio-SWARM creates a new language file based on a copy of the selected source language. This means the new translation initially contains the original text, including special characters, emojis, line breaks, and variables such as `{filename}` or `{value}`. Nothing is automatically removed or replaced.
+
+The new language is then added to your translation projects.
+
+### Translation interface
+
+The editor displays two columns:
+
+- **Left column — Source:** Displays the original text from the language selected in the **Translate from** field. This column is your reference and cannot be modified.
+You can select words or sentences and use <kbd>Ctrl</kbd> + <kbd>C</kbd> to copy text if you accidentally erased something in the other column that shouldn't have been removed. However, that is the only action you can perform in this column.
+
+- **Right column — Translation:** The text from your target language file. This is where you write or correct your translations.
+
+Each entry corresponds to the same entry in the source language. Sections are separated to make the text easier to navigate.
+
+Click a translation entry to edit it. You can select, copy, and paste text between the two columns when needed.
+
+### Important!
+- **Keep special elements such as `{variables}`, `\\n`, punctuation, and other formatting markers intact** whenever they are required by the original text. These elements may be used by Audio-SWARM and must not be accidentally removed.
+
+#### You can leave entries untranslated and return to them later by clicking the "Save" button.
+
+### Translation projects
+
+The project list contains the languages you have created or are currently working on.
+
+![Translation projects](images/translation-project.jpg "align=center caption=alt")
+
+If you work on several translations, select the language you want to edit from the project list. You can switch between projects without creating a new translation each time.
+
+Your translations are saved in their respective language files, so each project remains separate.
+
+### The three buttons at the bottom
+
+**New Translation**
+
+Creates a new translation project. Choose the source language in **Translate from:** and the destination language in **Translate to:**. The destination language file is created from the source language file and registered as a translation project.
+
+**Save Translation**
+
+Saves your current translation to its language file. You can save your work at any time, even if the translation is incomplete.
+
+It is recommended to save regularly while translating.
+
+**Reload GUI**
+
+Reloads the Audio-SWARM interface using the language of the translation project **currently selected.**
+
+This button is particularly useful while translating because it allows you to see your work in the actual application, rather than relying only on the text displayed in the editor.
+
+For example, you can:
+
+1. Translate several entries.
+2. Click **Save Translation**.
+3. Click **Reload GUI**.
+4. Audio-SWARM switches its interface to the language you are translating.
+5. Check menus, buttons, tabs, labels, and other interface elements to see how your translations look in their real context.
+
+This is a live preview of your translation within Audio-SWARM. It can help you identify wording that is too long, unclear, incorrect, or unsuitable for the interface.
+
+**Important:** Reload GUI changes the language currently displayed by Audio-SWARM. If your translation is incomplete, untranslated entries may still appear in the original language. This is normal and allows you to continue using the application while translating.
+**Do not delete any entries before clicking "Save"!** If you do, parts of the GUI will be left without text when you click "Reload the GUI" in the language you are translating.
+
+You can return to another language through the language selection/reload mechanism near the "Theme".
+
+### Tips for translators
+
+- You do not need to translate everything in one session.
+- Save your work regularly.
+- Use Reload GUI to check your translations in context.
+- Prefer clear, natural, concise wording suitable for software interfaces.
+- Avoid unnecessarily long translations for buttons, tabs, and labels.
+- Do not modify variables, formatting markers, or special characters unless you know they are intended to change.
+- If a translation looks strange in the application, return to the editor, correct it, save, and reload again.
+
+## [Submit your translation](https://github.com/PatLabGit/Audio-SWARM/discussions/1) <!-- anchor: submit-translation -->
+
+If you would like to contribute your translation to Audio-SWARM, you are welcome to send me your translated language file.
+
+1. **Locate your translation file.** Open the Audio-SWARM installation folder and find the **`languages`** folder (visible alongside `main.py` and the Audio-SWARM launcher). Open it and locate the file bearing the **two-letter code of the language you translated** (e.g., `fr` for French, `de` for German, `ja` for Japanese). File extensions such as `.json` may not be visible, depending on your operating system settings.
+2. Visit the **[Audio-SWARM GitHub Discussions page](https://github.com/PatLabGit/Audio-SWARM/discussions/1).**
+3. Open the translation submission discussion and attach your file to your comment.
+
+You do not need to modify the source code or submit a pull request.
+
+You are welcome to use a pseudonymous GitHub account if you prefer not to disclose your real identity.
+
+All contributions are welcome. Thank you for helping make Audio-SWARM available to more people!
+
+Thank you for helping make Audio-SWARM available to more people.
+
+## Translate the Help file
+**copy the English file from the `help` folder**, translate its prose and headings, and save it using the correct language code. Keep Help HTML anchor comments and table-of-contents targets unchanged so section links continue to work.
 Save as UTF-8!
 
 Do not translate filenames, code examples, setting identifiers, or folder names when they must match the actual application. Keep translations aligned with the English master and report unclear wording or outdated behavior. If a language-specific Help or About file is missing, Audio-SWARM falls back to the corresponding English document.

@@ -19,14 +19,19 @@ class HelpAboutMixin:
         self.help_about_notebook.pack(fill="both", expand=True)
         help_tab = tk.Frame(self.help_about_notebook, bg=page_bg)
         about_tab = tk.Frame(self.help_about_notebook, bg=page_bg)
+        translation_tab = tk.Frame(self.help_about_notebook, bg=base_bg)
         self.help_about_notebook.add(help_tab, text=self.tr("Help"))
         self.help_about_notebook.add(about_tab, text=self.tr("About"))
+        self.help_about_notebook.add(translation_tab, text=self._translation_ui("tab"))
 
         self.help_text = self._create_markdown_view(help_tab, "help")
         self.about_text = self._create_markdown_view(about_tab, "about")
+        self.translation_tab = translation_tab
+        self._translation_editor_initialized = False
         # Render each document only when it is first shown (not at startup or after a
         # language change), so images are not decoded for pages nobody opens.
         self._help_documents_rendered = {"help": False, "about": False}
+        self.apply_translation_theme()
         self.help_about_notebook.bind("<<NotebookTabChanged>>", self._render_visible_help_document, add="+")
 
         # Keep mouse-wheel scrolling inside the active document rather than
@@ -45,6 +50,14 @@ class HelpAboutMixin:
                 return
             rendered = self._help_documents_rendered
             sub_index = self.help_about_notebook.index(self.help_about_notebook.select())
+            if sub_index == 2:
+                # Build the translation editor only when its tab is opened.
+                # Avoid creating hundreds of Text widgets during normal startup or
+                # every global-language rebuild.
+                if not getattr(self, "_translation_editor_initialized", False):
+                    self.build_translation_editor_interface(self.translation_tab)
+                    self._translation_editor_initialized = True
+                return
             key = "help" if sub_index == 0 else "about"
             if rendered.get(key):
                 return
@@ -94,11 +107,13 @@ class HelpAboutMixin:
         text_widget.tag_configure("align_right", justify="right")
 
     def apply_help_theme(self):
-        """Refresh both Help and About text styling after a theme change."""
+        """Refresh Help, About, and translation-editor styling after a theme change."""
         for widget_name in ("help_text", "about_text"):
             text_widget = getattr(self, widget_name, None)
             if text_widget is not None and text_widget.winfo_exists():
                 self._apply_markdown_theme_to_widget(text_widget)
+        if hasattr(self, "apply_translation_theme"):
+            self.apply_translation_theme()
 
     def _scroll_markdown(self, text_widget, units):
         text_widget.yview_scroll(units, "units")
