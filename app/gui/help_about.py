@@ -98,6 +98,7 @@ class HelpAboutMixin:
         text_widget.tag_configure("bold", font=(SANS_FONT, 12, "bold"), foreground=palette["text"])
         text_widget.tag_configure("italic", font=(SANS_FONT, 12, "italic"))
         text_widget.tag_configure("inline_code", font=(MONO_FONT, 10), foreground=palette["code_text"], background=palette["code"])
+        text_widget.tag_configure("keyboard_key", font=(SANS_FONT, 12, "bold"), foreground=palette["text"], background=palette["selected"], borderwidth=1, relief="raised")
         text_widget.tag_configure("bullet", foreground=palette["accent"])
         text_widget.tag_configure("hr", foreground=palette["muted"])
         text_widget.tag_configure("md_link", foreground=palette["accent"], underline=True)
@@ -376,7 +377,7 @@ class HelpAboutMixin:
             text_widget.insert("end", options["caption"] + "\n", tags)
 
     def _insert_markdown_inline(self, text_widget, text, document_key, link_counter):
-        token_pattern = re.compile(r"\[([^\]]+)\]\(([^)]+)\)|\*\*(.+?)\*\*|(?<!\*)\*([^*]+)\*(?!\*)|`([^`]+)`")
+        token_pattern = re.compile(r"\[([^\]]+)\]\(([^)]+)\)|\*\*(.+?)\*\*|(?<!\*)\*([^*]+)\*(?!\*)|`([^`]+)`|%%([^%]+)%%")
         pos = 0
         for match in token_pattern.finditer(text):
             if match.start() > pos:
@@ -395,6 +396,8 @@ class HelpAboutMixin:
                 text_widget.insert("end", match.group(4), ("italic",))
             elif match.group(5) is not None:
                 text_widget.insert("end", match.group(5), ("inline_code",))
+            elif match.group(6) is not None:
+                text_widget.insert("end", match.group(6), ("keyboard_key",))
             pos = match.end()
         if pos < len(text):
             text_widget.insert("end", text[pos:])

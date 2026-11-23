@@ -271,7 +271,7 @@ To contribute a translation, you can do it directly in the Audio-SWARM user inte
 
 ## 12. Audio-SWARM's translation tool  <!-- anchor: translation-tool -->
 
-[Submit your translation on GitHub](https://github.com/PatLabGit/Audio-SWARM/discussions/1).
+[Submit your translation on GitHub](https://github.com/PatLabGit/Audio-SWARM/discussions/1)
 
 The Translation tool allows you to translate Audio-SWARM into another language, or correct an existing translation, directly from the application, which also allows you to check immediately if the length of a translated function is not too long. And you do not need to edit JSON files manually.
 
@@ -286,7 +286,10 @@ A dialog will appear with two language selectors:
 ![Create a new translation](images/new-translation.jpg "align=center caption=alt")
 
 - **Translate from:** The original language you want to translate from. English is recommended, but you can select another language. This list contains only languages for which a translation already exists in Audio-SWARM.
-- **Translate to:** The language you want to translate into. The list contains 172 languages available in the language dictionary.
+- **Translate to:** The language you want to translate into. The list contains 172 languages available in the language dictionary. 
+I used ISO 639-1 (two-letter language codes) for the Audio-SWARM language list. 
+One exception: `tw` is not an official ISO 639-1 language code. I used it as a custom code for Traditional Chinese, rather than zh-TW or zh-Hant.
+For simplicity, I kept the two-letter code system for the language list and deferred three-letter codes such as `pcm`.
 
 Once you have selected both languages, click **OK** to create the translation.
 
@@ -299,7 +302,7 @@ The new language is then added to your translation projects.
 The editor displays two columns:
 
 - **Left column — Source:** Displays the original text from the language selected in the **Translate from** field. This column is your reference and cannot be modified.
-You can select words or sentences and use <kbd>Ctrl</kbd> + <kbd>C</kbd> to copy text if you accidentally erased something in the other column that shouldn't have been removed. However, that is the only action you can perform in this column.
+You can select words or sentences and use %% Ctrl %% + %%  C  %% to copy text if you accidentally erased something in the other column that shouldn't have been removed. However, that is the only action you can perform in this column.
 
 - **Right column — Translation:** The text from your target language file. This is where you write or correct your translations.
 
@@ -370,7 +373,7 @@ You can return to another language through the language selection/reload mechani
 If you would like to contribute your translation to Audio-SWARM, you are welcome to send me your translated language file.
 
 1. **Locate your translation file.** Open the Audio-SWARM installation folder and find the **`languages`** folder (visible alongside `main.py` and the Audio-SWARM launcher). Open it and locate the file bearing the **two-letter code of the language you translated** (e.g., `fr` for French, `de` for German, `ja` for Japanese). File extensions such as `.json` may not be visible, depending on your operating system settings.
-2. Visit the **[Audio-SWARM GitHub Discussions page](https://github.com/PatLabGit/Audio-SWARM/discussions/1).**
+2. Visit the **[Audio-SWARM GitHub Discussions page](https://github.com/PatLabGit/Audio-SWARM/discussions/1)**
 3. Open the translation submission discussion and attach your file to your comment.
 
 You do not need to modify the source code or submit a pull request.

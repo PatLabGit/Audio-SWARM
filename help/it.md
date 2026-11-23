@@ -29,6 +29,8 @@ Progettato per offrire dettagli visivi e nitidezza eccezionali, Audio-SWARM cons
 - [9. Riferimento a colori e geometrie](#colors-geometry)
 - [10. Risoluzione dei problemi](#troubleshooting)
 - [11. Lingue e contributi](#languages-contributions)
+- [12. Strumento di traduzione di Audio-SWARM](#translation-tool)
+- [13. Invia la traduzione](#submit-translation)
 
 ## 1. Che cos’è Audio-SWARM? <!-- anchor: what-is-swarm -->
 
@@ -257,10 +259,82 @@ Se il problema persiste, conserva il testo del registro e annota lo strumento, l
 
 ## 11. Lingue e contributi <!-- anchor: languages-contributions -->
 
-Le traduzioni dell’interfaccia sono memorizzate come file JSON in `languages/`. Le guide sono file Markdown in `help/`, mentre i documenti About sono file Markdown in `about/`. I file JSON e Markdown usano il codice della lingua nel nome, per esempio `en.md` per l’inglese, `fr.md` per il francese o `ja.md` per il giapponese.
+Le traduzioni dell’interfaccia sono file JSON in `languages/`. Le guide sono file Markdown in `help/`, mentre i documenti About sono in `about/`. I file JSON e Markdown usano il codice lingua nel nome, ad esempio `en.md` per inglese, `fr.md` per francese o `ja.md` per giapponese.
+Puoi contribuire direttamente dall’interfaccia Audio-SWARM, in Help / About / Translate -> Translation's tab.
+## 12. Strumento di traduzione di Audio-SWARM <!-- anchor: translation-tool -->
 
-Per contribuire a una traduzione, **copia il file inglese dalla cartella pertinente**, traduci il testo e i titoli, quindi salva il file con il codice della lingua corretto. Mantieni invariati i commenti di ancoraggio HTML della guida e gli obiettivi del sommario, in modo che i collegamenti alle sezioni continuino a funzionare.
+[Invia la traduzione su GitHub](https://github.com/PatLabGit/Audio-SWARM/discussions/1).
 
-Salva i file in UTF-8!
+Lo strumento consente di tradurre Audio-SWARM in un’altra lingua o correggere una traduzione esistente direttamente nell’app. Puoi anche verificare subito se il testo di una voce è troppo lungo. Non serve modificare manualmente i file JSON.
 
-Non tradurre nomi di file, esempi di codice, identificatori delle impostazioni o nomi di cartelle quando devono corrispondere esattamente all’applicazione. Mantieni le traduzioni allineate al documento master inglese e segnala eventuali formulazioni poco chiare o comportamenti non più aggiornati. Se manca una guida o un documento About specifico per una lingua, Audio-SWARM utilizza il documento inglese corrispondente.
+![Strumento di traduzione in Audio-SWARM](images/english-to-french.jpg "align=center caption=alt")
+
+### Creare una traduzione
+
+Fai clic su **Nuova traduzione** per creare un progetto. Si apre una finestra con due selettori:
+
+![Creare una nuova traduzione](images/new-translation.jpg "align=center caption=alt")
+
+- **Traduci da:** lingua sorgente. È consigliato l’inglese, ma puoi scegliere anche un’altra lingua già tradotta in Audio-SWARM.
+- **Traduci in:** lingua di destinazione. L’elenco contiene 172 lingue del dizionario.
+
+Per l’elenco delle lingue ho usato ISO 639-1 (codici a due lettere). L’eccezione è `tw`, che non è un codice ISO 639-1 ufficiale: è un codice personalizzato per il cinese tradizionale, al posto di `zh-TW` o `zh-Hant`. Per semplicità, ho mantenuto i codici a due lettere e rimandato quelli a tre lettere, come `pcm`.
+
+Fai clic su **OK**. Il nuovo file viene creato copiando la lingua sorgente e inizialmente mantiene il testo originale, compresi caratteri speciali, emoji, interruzioni di riga e variabili come `{filename}` o `{value}`. Non viene rimosso o sostituito nulla automaticamente. Il progetto viene poi aggiunto.
+
+### Interfaccia di traduzione
+
+L’editor presenta due colonne:
+
+- **Lingua di origine (sinistra):** testo originale della lingua selezionata in **Translate from**. È di sola lettura. Puoi selezionare e copiare il testo con %% Ctrl %% + %% C %% se hai cancellato per errore qualcosa nell’altra colonna; è l’unica azione disponibile qui.
+- **Lingua di destinazione (destra):** testo del file di destinazione, da tradurre o correggere.
+
+Ogni voce corrisponde a quella della lingua sorgente. Le sezioni facilitano la navigazione. Fai clic su una voce per modificarla; puoi selezionare, copiare e incollare tra le colonne.
+
+### Importante!
+
+- **Mantieni gli elementi necessari, come `{variables}`, `\n`, punteggiatura e marcatori di formattazione.** Audio-SWARM può utilizzarli.
+
+#### Puoi lasciare alcune voci non tradotte e riprenderle in seguito con **Save**.
+
+### Progetti di traduzione
+
+L’elenco mostra le lingue create o in lavorazione.
+
+![Progetti di traduzione](images/translation-project.jpg "align=center caption=alt")
+
+Seleziona il progetto da modificare e passa da uno all’altro senza crearne uno nuovo ogni volta. Ogni progetto viene salvato nel proprio file lingua.
+
+### I tre pulsanti in basso
+
+**Nuova traduzione** — crea un progetto. Scegli **Traduci da:** e **Traduci in:**. Il file di destinazione viene copiato dalla sorgente e registrato come progetto.
+
+**Salva traduzione** — salva la traduzione, anche se incompleta. Salva regolarmente.
+
+**Ricarica GUI** — ricarica l’interfaccia nella lingua del progetto **selezionato**. Traduci alcune voci, salva e ricarica per controllare menu, pulsanti, schede ed etichette nell’app. Aiuta a individuare testi troppo lunghi o inadatti.
+
+**Importante:** le voci non tradotte possono restare nella lingua sorgente; è normale. **Non eliminare voci prima di salvare**, altrimenti alcune parti dell’interfaccia potrebbero rimanere senza testo. Puoi tornare a un’altra lingua tramite selezione/ricarica accanto a «Theme».
+
+### Suggerimenti per i traduttori
+
+- Traduci con calma e salva spesso.
+- Verifica con Reload GUI.
+- Usa formulazioni chiare, naturali e concise, soprattutto per pulsanti, schede ed etichette.
+- Non modificare variabili, marcatori o caratteri speciali senza motivo.
+- Se qualcosa appare strano, correggi, salva e ricarica.
+
+## [Invia la traduzione](https://github.com/PatLabGit/Audio-SWARM/discussions/1) <!-- anchor: submit-translation -->
+
+Puoi inviarmi il file lingua tradotto per contribuire ad Audio-SWARM.
+
+1. **Trova il file:** apri la cartella d’installazione e la cartella **`languages`** (accanto a `main.py` e al launcher). Individua il file con il **codice lingua a due lettere** (ad esempio `fr`, `de`, `ja`). L’estensione `.json` potrebbe essere nascosta.
+2. Visita la **[pagina GitHub Discussions di Audio-SWARM](https://github.com/PatLabGit/Audio-SWARM/discussions/1)**.
+3. Apri la discussione per l’invio delle traduzioni e allega il file al commento.
+
+Non occorre modificare il codice né inviare una pull request. Puoi usare un account GitHub pseudonimo. Grazie per ogni contributo e per aiutare Audio-SWARM a raggiungere più persone!
+
+## Tradurre il file Help
+
+**Copia il file inglese da `help`**, traduci testo e titoli e salvalo con il codice lingua corretto. Mantieni invariati i commenti HTML delle ancore e i riferimenti del sommario, così i collegamenti funzionano. Salva in UTF-8.
+
+Non tradurre nomi file, esempi di codice, identificatori delle impostazioni o cartelle se devono corrispondere esattamente all’app. Mantieni la traduzione sincronizzata con il master inglese e segnala formulazioni ambigue o comportamenti obsoleti. Se manca un file Help o About specifico, Audio-SWARM usa il documento inglese corrispondente.

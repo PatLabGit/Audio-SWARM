@@ -29,6 +29,8 @@ Audio-SWARM wurde entwickelt, um außergewöhnliche Details und eine hohe Bildsc
 - [9. Referenz zu Farben und Geometrie](#colors-geometry)
 - [10. Fehlerbehebung](#troubleshooting)
 - [11. Sprachen und Beiträge](#languages-contributions)
+- [12. Das Übersetzungstool von Audio-SWARM](#translation-tool)
+- [13. Übersetzung einreichen](#submit-translation)
 
 ## 1. Was ist Audio-SWARM? <!-- anchor: what-is-swarm -->
 
@@ -257,10 +259,85 @@ Wenn das Problem weiterhin besteht, speichern Sie den Protokolltext und notieren
 
 ## 11. Sprachen und Beiträge <!-- anchor: languages-contributions -->
 
-Übersetzungen der Benutzeroberfläche werden als JSON-Dateien im Ordner `languages/` gespeichert. Hilfedokumente liegen als Markdown-Dateien im Ordner `help/`, Informationen zum Programm als Markdown-Dateien in `about/`. Die JSON- und Markdown-Dateien verwenden den Sprachcode als Dateinamen, beispielsweise `en.md` für Englisch, `fr.md` für Französisch oder `ja.md` für Japanisch.
+Übersetzungen der Benutzeroberfläche liegen als JSON-Dateien in `languages/`. Hilfedokumente sind Markdown-Dateien in `help/`, About-Dokumente in `about/`. JSON- und Markdown-Dateien verwenden den Sprachcode als Dateinamen, z. B. `en.md` für Englisch, `fr.md` für Französisch oder `ja.md` für Japanisch.
 
-Um eine Übersetzung beizutragen, **kopieren Sie die englische Datei aus dem entsprechenden Ordner**, übersetzen Sie den Fließtext und die Überschriften und speichern Sie die Datei unter dem passenden Sprachcode. Lassen Sie HTML-Ankerkommentare und Ziele im Inhaltsverzeichnis unverändert, damit die Abschnittslinks funktionieren.
+Sie können direkt in Audio-SWARM unter Help / About / Translate -> Translation's tab an Übersetzungen mitarbeiten.
 
-Speichern Sie die Dateien als UTF-8!
+## 12. Das Übersetzungstool von Audio-SWARM <!-- anchor: translation-tool -->
 
-Übersetzen Sie keine Dateinamen, Codebeispiele, Einstellungsbezeichnungen oder Ordnernamen, wenn sie exakt mit der Anwendung übereinstimmen müssen. Halten Sie die Übersetzungen mit der englischen Masterdatei synchron und melden Sie unklare Formulierungen oder veraltetes Verhalten. Fehlt eine sprachspezifische Hilfe- oder About-Datei, verwendet Audio-SWARM das entsprechende englische Dokument.
+[Übersetzung auf GitHub einreichen](https://github.com/PatLabGit/Audio-SWARM/discussions/1)
+
+Mit dem Tool können Sie Audio-SWARM direkt in der Anwendung übersetzen oder eine bestehende Übersetzung korrigieren. Außerdem lässt sich sofort prüfen, ob ein übersetzter Eintrag zu lang ist. JSON-Dateien müssen nicht manuell bearbeitet werden.
+
+![Übersetzungstool in Audio-SWARM](images/english-to-french.jpg "align=center caption=alt")
+
+### Übersetzung erstellen
+
+Klicken Sie auf **Neue Übersetzung**, um ein Projekt zu erstellen. Ein Dialog bietet zwei Sprachauswahlen:
+
+![Neue Übersetzung erstellen](images/new-translation.jpg "align=center caption=alt")
+
+- **Übersetzen von:** Ausgangssprache. Englisch wird empfohlen; gewählt werden können auch andere Sprachen, für die Audio-SWARM bereits eine Übersetzung enthält.
+- **Übersetzen nach:** Zielsprache. Die Liste umfasst 172 Sprachen aus dem Sprachverzeichnis.
+
+Für die Sprachliste verwende ich ISO 639-1 (zweistellige Sprachcodes). Ausnahme: `tw` ist kein offizieller ISO-639-1-Code, sondern ein eigener Code für traditionelles Chinesisch statt `zh-TW` oder `zh-Hant`. Der Einfachheit halber bleiben zweistellige Codes erhalten; dreistellige Codes wie `pcm` sind zurückgestellt.
+
+Klicken Sie auf **OK**. Die neue Sprachdatei wird aus einer Kopie der gewählten Ausgangssprache erstellt und behält den Originaltext einschließlich Sonderzeichen, Emojis, Zeilenumbrüchen und Variablen wie `{filename}` oder `{value}` bei. Es wird nichts automatisch gelöscht oder ersetzt. Anschließend wird das Projekt hinzugefügt.
+
+### Übersetzungsoberfläche
+
+Der Editor hat zwei Spalten:
+
+- **Quellsprache (links):** Originaltext der unter **Translate from** gewählten Sprache. Nur lesbar. Sie können Text markieren und mit %% Ctrl %% + %% C %% kopieren, falls Sie in der anderen Spalte versehentlich etwas gelöscht haben. Das ist die einzige Aktion in dieser Spalte.
+- **Zielsprache (rechts):** Text der Zieldatei; hier übersetzen oder korrigieren Sie.
+
+Jeder Eintrag entspricht dem gleichen Eintrag der Ausgangssprache. Abschnitte erleichtern die Navigation. Klicken Sie zum Bearbeiten auf einen Eintrag; Text kann zwischen den Spalten markiert, kopiert und eingefügt werden.
+
+### Wichtig!
+
+- **Behalten Sie erforderliche Elemente wie `{variables}`, `\n`, Satzzeichen und Formatierungsmarker bei.** Audio-SWARM kann sie verwenden.
+
+#### Einträge können unübersetzt bleiben und später mit **Save** weiterbearbeitet werden.
+
+### Übersetzungsprojekte
+
+Die Liste zeigt erstellte und aktuell bearbeitete Sprachen.
+
+![Übersetzungsprojekte](images/translation-project.jpg "align=center caption=alt")
+
+Wählen Sie das gewünschte Projekt aus und wechseln Sie zwischen Projekten, ohne jedes Mal eine neue Übersetzung anzulegen. Jedes Projekt wird in einer eigenen Sprachdatei gespeichert.
+
+### Die drei Schaltflächen unten
+
+**Neue Übersetzung** — erstellt ein Projekt. Wählen Sie **Übersetzen von:** und **Übersetzen nach:**. Die Zieldatei wird aus der Quelle kopiert und als Projekt registriert.
+
+**Übersetzung speichern** — speichert die Übersetzung, auch wenn sie unvollständig ist. Speichern Sie regelmäßig.
+
+**GUI neu laden** — lädt die Oberfläche in der Sprache des **ausgewählten** Projekts neu. Übersetzen Sie einige Einträge, speichern Sie und laden Sie neu, um Menüs, Schaltflächen, Tabs und Beschriftungen in der Anwendung zu prüfen. So erkennen Sie zu lange oder unpassende Texte.
+
+**Wichtig:** Nicht übersetzte Einträge können weiterhin in der Ausgangssprache erscheinen. Das ist normal. **Löschen Sie keine Einträge vor dem Speichern**, sonst können Teile der Oberfläche leer bleiben. Über die Sprachwahl/Neuladen neben „Theme“ können Sie zurückwechseln.
+
+### Tipps
+
+- Übersetzen Sie in Ihrem eigenen Tempo und speichern Sie regelmäßig.
+- Prüfen Sie die Übersetzung mit Reload GUI.
+- Verwenden Sie klare, natürliche und knappe Formulierungen, besonders bei Schaltflächen, Tabs und Beschriftungen.
+- Ändern Sie Variablen, Formatierungsmarker oder Sonderzeichen nicht ohne Grund.
+- Wenn etwas seltsam wirkt, korrigieren, speichern und neu laden.
+
+## [Übersetzung einreichen](https://github.com/PatLabGit/Audio-SWARM/discussions/1) <!-- anchor: submit-translation -->
+
+Sie können mir Ihre übersetzte Sprachdatei schicken, um Audio-SWARM zu unterstützen.
+
+1. **Datei finden:** Öffnen Sie den Installationsordner und darin **`languages`** (neben `main.py` und dem Launcher). Suchen Sie die Datei mit dem **zweistelligen Sprachcode** (z. B. `fr`, `de`, `ja`). Die Endung `.json` ist möglicherweise ausgeblendet.
+2. Öffnen Sie die **[Audio-SWARM GitHub Discussions-Seite](https://github.com/PatLabGit/Audio-SWARM/discussions/1)**.
+3. Öffnen Sie die Übersetzungsdiskussion und hängen Sie die Datei an Ihren Kommentar an.
+
+Sie müssen weder den Quellcode ändern noch einen Pull Request erstellen. Ein pseudonymes GitHub-Konto ist möglich. Vielen Dank für jeden Beitrag und dafür, Audio-SWARM für mehr Menschen zugänglich zu machen!
+
+## Die Help-Datei übersetzen
+
+**Kopieren Sie die englische Datei aus `help`**, übersetzen Sie Text und Überschriften und speichern Sie sie unter dem passenden Sprachcode. HTML-Ankerkommentare und Inhaltsverzeichnisziele müssen unverändert bleiben. Speichern Sie als UTF-8.
+
+Übersetzen Sie keine Dateinamen, Codebeispiele, Einstellungs-IDs oder Ordnernamen, wenn sie exakt zur Anwendung passen müssen. Halten Sie die Übersetzung mit dem englischen Master synchron und melden Sie unklare oder veraltete Inhalte. Fehlt eine sprachspezifische Help- oder About-Datei, verwendet Audio-SWARM das entsprechende englische Dokument.
+Sie können direkt in Audio-SWARMSie können direkt in Audio-SWARMSie können direkt in Audio-SWARMSie können direkt in Audio-SWARM

@@ -31,6 +31,8 @@ Audio-SWARM 专为呈现出色的视觉细节和清晰度而设计，能够制�
 - [9. 颜色与几何样式参考](#colors-geometry)
 - [10. 故障排查](#troubleshooting)
 - [11. 语言与贡献](#languages-contributions)
+- [12. Audio-SWARM 翻译工具](#translation-tool)
+- [13. 提交你的翻译](#submit-translation)
 
 ## 1. 什么是 Audio-SWARM？ <!-- anchor: what-is-swarm -->
 
@@ -259,10 +261,82 @@ Solid Flat Color 不需要处理渐变切片。在运行非常大的批次之前
 
 ## 11. 语言与贡献 <!-- anchor: languages-contributions -->
 
-界面翻译以 JSON 文件的形式存储在 `languages/` 中。帮助文档是 `help/` 中的 Markdown 文件，About 文档是 `about/` 中的 Markdown 文件。JSON 和 Markdown 文件均使用语言代码作为文件名，例如 `en.md` 表示英语、`fr.md` 表示法语、`ja.md` 表示日语。
+界面翻译以 JSON 文件存储在 `languages/` 中。帮助文档是 `help/` 中的 Markdown 文件，About 文档在 `about/` 中。文件名使用语言代码，例如 `en.md` 英语、`fr.md` 法语、`ja.md` 日语。
+你可以直接在 Audio-SWARM 的 Help / About / Translate -> Translation's tab 参与翻译。
 
-如果要贡献翻译，请**从相应文件夹复制英文文件**，翻译正文和标题，并使用正确的语言代码保存。请保持 Help 中的 HTML 锚点注释和目录链接目标不变，以确保章节链接正常工作。
+## 12. Audio-SWARM 翻译工具 <!-- anchor: translation-tool -->
 
-请使用 UTF-8 编码保存文件！
+[在 GitHub 提交翻译](https://github.com/PatLabGit/Audio-SWARM/discussions/1)。
 
-如果文件名、代码示例、设置标识符或文件夹名称必须与应用程序完全一致，请不要翻译这些内容。请让译文与英文主文档保持同步，并报告不清楚的表述或过时的行为说明。如果缺少特定语言的 Help 或 About 文档，Audio-SWARM 会使用对应的英文文档。
+翻译工具可以让你直接在应用中将 Audio-SWARM 翻译成其他语言，或修正现有翻译，也能立即检查某个翻译条目的文本是否过长。无需手动编辑 JSON 文件。
+
+![Audio-SWARM 翻译工具](images/english-to-french.jpg "align=center caption=alt")
+
+### 创建翻译
+
+点击 **新增翻譯** 创建项目。对话框会提供两个语言选择器：
+
+![创建新翻译](images/new-translation.jpg "align=center caption=alt")
+
+- **翻譯來源：** 源语言。推荐英语，也可选择 Audio-SWARM 已有翻译的其他语言。
+- **翻譯目標：** 目标语言。列表包含语言词典中的172种语言。
+
+语言列表使用 ISO 639-1（两字母语言代码）。例外是 `tw`：它不是正式的 ISO 639-1 代码，而是繁体中文的自定义代码，用来代替 `zh-TW` 或 `zh-Hant`。为简便起见，保留两字母代码，暂缓采用 `pcm` 等三字母代码。
+
+选好语言后点击 **OK**。新文件从所选源语言复制而来，并保留原文、特殊字符、emoji、换行以及 `{filename}`、`{value}` 等变量。不会自动删除或替换内容。新项目随后加入列表。
+
+### 翻译界面
+
+编辑器分为两列：
+
+- **Source（左侧）：** 显示 **Translate from** 所选语言的原文，只读。如果在另一列误删了内容，可以选择原文并按 %% Ctrl %% + %% C %% 复制。这是此列唯一的操作。
+- **Translation（右侧）：** 目标语言文件文本，在此翻译或修改。
+
+每个条目对应源语言的同一条目，各部分分开以方便浏览。点击条目即可编辑，也可在两列间选择、复制和粘贴文本。
+
+### 重要！
+- **请保留原文需要的特殊元素，例如 `{variables}`、`\n`、标点和其他格式标记。** Audio-SWARM 可能会使用这些内容。
+
+#### 未翻译的条目可以暂时保留，之后点击 **Save** 继续。
+
+### 翻译项目
+
+列表显示已创建或正在翻译的语言。
+
+![翻译项目](images/translation-project.jpg "align=center caption=alt")
+
+选择要编辑的项目即可切换，无需每次新建翻译。每个项目保存到独立的语言文件中。
+
+### 底部的三个按钮
+
+**新增翻譯** — 创建项目。选择 **翻譯來源：** 和 **翻譯目標：**，目标文件从源文件复制并登记为项目。
+
+**儲存翻譯** — 保存当前翻译，即使尚未完成。请定期保存。
+
+**重新載入 GUI** — 使用**当前选中**项目的语言重新加载 Audio-SWARM。翻译几条内容、保存并重新加载，即可在实际界面检查菜单、按钮、标签页和标签，发现过长或不合适的文本。
+
+**重要：** 未翻译的条目可能仍显示源语言，这是正常的。**保存之前不要删除条目**，否则界面部分内容可能会缺失。可以通过「Theme」附近的语言选择／重新加载功能切换回其他语言。
+
+### 给译者的提示
+
+- 不必一次翻完，请定期保存。
+- 使用 Reload GUI 在实际界面检查译文。
+- 按钮、标签页和标签使用清晰、自然、简洁的表达。
+- 不要随意修改变量、格式标记或特殊字符。
+- 如果译文显示不自然，请修改、保存并重新加载。
+
+## [提交你的翻译](https://github.com/PatLabGit/Audio-SWARM/discussions/1) <!-- anchor: submit-translation -->
+
+欢迎将翻译后的语言文件发给我，为 Audio-SWARM 做贡献。
+
+1. **找到文件：** 打开安装目录中的 **`languages`**（与 `main.py` 和启动器同级），找到带有翻译语言**两字母代码**的文件（例如 `fr`、`de`、`ja`）。系统设置可能隐藏 `.json` 扩展名。
+2. 访问 **[Audio-SWARM GitHub Discussions 页面](https://github.com/PatLabGit/Audio-SWARM/discussions/1)**。
+3. 打开翻译提交讨论，并在评论中附上文件。
+
+无需修改源代码或提交 pull request。也可以使用匿名或化名 GitHub 账号。感谢所有贡献，感谢你帮助 Audio-SWARM 让更多人使用！
+
+## 翻译 Help 文件
+
+**从 `help` 文件夹复制英文文件**，翻译正文和标题，并使用正确的语言代码保存。请保留 HTML 锚点注释和目录链接目标，确保章节链接正常，并以 UTF-8 保存。
+
+如果文件名、代码示例、设置标识符或文件夹名必须与应用完全一致，请不要翻译。保持译文与英文主文档同步，并报告不清楚或过时的内容。如果缺少该语言的 Help 或 About 文件，Audio-SWARM 会使用对应的英文文档。

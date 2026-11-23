@@ -121,11 +121,11 @@ class MainWindowMixin:
         self.sidebar.pack(side="left", fill="y", padx=(0, 8))
         self.sidebar.pack_propagate(False)
 
-        # Responsive sidebar width: 18%, minimum 180px, maximum 260px.
+        # Responsive sidebar width: 18%, minimum 180px, maximum 260px / 270 for ukr.
         body.bind(
             "<Configure>",
             lambda event: self.sidebar.configure(
-                width=max(180, min(260, int(event.width * 0.18)))
+                width=max(180, min(270, int(event.width * 0.18)))
             )
         )
         self.workspace_host = tk.Frame(body, bg=palette["base"])

@@ -2,6 +2,7 @@
 """Audio-SWARM desktop application entry point."""
 from __future__ import annotations
 import os
+import json
 import queue
 import threading
 import traceback
@@ -56,7 +57,7 @@ class AudioSWARMApp(LocalizationMixin, HelpAboutMixin, TranslationEditorMixin, C
         self.translations = {}
         self.load_language(self.language_code)
         self.root.title(self.tr("Audio-SWARM — Audio Waveform & Artwork Studio"))
-        self.root.geometry("1280x720")
+        self._restore_window_settings()
         self.root.configure(bg=self.get_theme_palette()["base"])
 
         # -------------------------------------------------------------
@@ -145,9 +146,42 @@ class AudioSWARMApp(LocalizationMixin, HelpAboutMixin, TranslationEditorMixin, C
         )
 
         self.setup_ui_layout()
-        self.root.protocol("WM_DELETE_WINDOW", self.on_application_close)
+        self.root.protocol("WM_DELETE_WINDOW", self._save_window_settings_and_close)
         self._drain_ui_queue()
         self.root.after(600, self._warn_if_ffmpeg_missing)
+
+    def _restore_window_settings(self):
+        """Restore saved window geometry/state, with a simple first-launch default."""
+        geometry = "1280x720"
+        state = "normal"
+        try:
+            with open(self.settings_path, "r", encoding="utf-8") as f:
+                settings = json.load(f)
+            geometry = settings.get("window_geometry", geometry)
+            state = settings.get("window_state", state)
+        except (OSError, json.JSONDecodeError, TypeError):
+            pass
+        self.root.geometry(geometry)
+        if state == "zoomed":
+            self.root.state("zoomed")
+
+    def _save_window_settings_and_close(self):
+        """Save window settings without replacing the rest of settings.json."""
+        try:
+            try:
+                with open(self.settings_path, "r", encoding="utf-8") as f:
+                    settings = json.load(f)
+                if not isinstance(settings, dict):
+                    settings = {}
+            except (OSError, json.JSONDecodeError):
+                settings = {}
+            settings["window_geometry"] = self.root.geometry()
+            settings["window_state"] = self.root.state()
+            with open(self.settings_path, "w", encoding="utf-8") as f:
+                json.dump(settings, f, indent=4, ensure_ascii=False)
+        except OSError:
+            pass
+        self.on_application_close()
 
     # -- thread-safe UI plumbing -------------------------------------------------
     @property
