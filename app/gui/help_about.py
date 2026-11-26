@@ -1,6 +1,9 @@
 """Help, about, and markdown rendering widgets."""
 from __future__ import annotations
-import os, struct, re, webbrowser
+import os
+import re
+import struct
+import webbrowser
 from pathlib import Path
 import tkinter as tk
 from tkinter import ttk

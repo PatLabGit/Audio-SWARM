@@ -100,7 +100,7 @@ def prepare_artwork(image_path: str | Path, output_dir: str | Path,
                     artwork.close()
             finally:
                 source_rgba.close()
-    except Exception:
+    except BaseException:  # clean up the half-written file on any failure, then re-raise
         destination.unlink(missing_ok=True)
         raise
     return destination
@@ -137,7 +137,7 @@ def embed_artwork(audio_path: str | Path, image_path: str | Path,
                                     f"WAV does not support portable embedded cover art; copied audio and image side by side ({image_target.name}).")
         except OSError as error:
             return ProcessingResult(source, None, False, str(error))
-    output_suffix = ".ogg" if suffix in {".ogg", ".oga"} else ".m4a" if suffix == ".aac" else suffix
+    output_suffix = ".m4a" if suffix == ".aac" else suffix
     if destination.suffix.lower() != output_suffix:
         destination = destination.with_suffix(output_suffix)
     image_is_jpg = image.suffix.lower() in {".jpg", ".jpeg"}

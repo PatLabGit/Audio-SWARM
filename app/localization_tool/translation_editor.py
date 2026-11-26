@@ -16,341 +16,40 @@ from app.localization_tool.translation_project import read_registry, register_pr
 from app.localization_tool.translation_feedback import show_feedback
 
 
-UI_TEXT = {
-    'en': {
-        'tab': 'Translation',
-        'project': 'Translation project:',
-        'new': 'New Translation',
-        'save': 'Save Translation',
-        'reload': 'Reload GUI',
-        'from': 'Translate from:',
-        'to': 'Translate to:',
-        'cancel': 'Cancel',
-        'ok': 'OK',
-        'choose': 'Choose both source and target languages.',
-        'different': 'Source and target languages must differ.',
-        'select_project': 'Create or select a translation project first.',
-        'select_reload': 'Select a translation project first.',
-        'created': 'Translation project created: {source} → {target}',
-        'opened': 'Translation project opened: {source} → {target}',
-        'saved': 'Translation saved: {target}',
-        'empty': 'Some entries are empty: {count}',
-        'reload_ok': 'GUI language: {language}',
-        'load_error': 'Could not load project: {error}',
-        'create_error': 'Could not create project: {error}',
-        'save_error': 'Unable to save translation: {error}',
-        'invalid': 'Translation file is invalid: {error}',
-        'not_saved': 'Translation file does not exist. Save it first.',
-        'source': 'Source language',
-        'target': 'Target language',
-    },
-    'fr': {
-        'tab': 'Traduction',
-        'project': 'Projet de traduction :',
-        'new': 'Nouvelle traduction',
-        'save': 'Enregistrer la traduction',
-        'reload': 'Recharger l’interface',
-        'from': 'Traduire depuis :',
-        'to': 'Traduire vers :',
-        'cancel': 'Annuler',
-        'ok': 'OK',
-        'choose': 'Choisissez les deux langues.',
-        'different': 'Les langues source et cible doivent être différentes.',
-        'select_project': 'Créez ou sélectionnez un projet.',
-        'select_reload': 'Sélectionnez un projet.',
-        'created': 'Projet créé : {source} → {target}',
-        'opened': 'Projet ouvert : {source} → {target}',
-        'saved': 'Traduction enregistrée : {target}',
-        'empty': 'Entrées vides : {count}',
-        'reload_ok': 'Langue de l’interface : {language}',
-        'load_error': 'Impossible de charger le projet : {error}',
-        'create_error': 'Impossible de créer le projet : {error}',
-        'save_error': 'Échec de l’enregistrement : {error}',
-        'invalid': 'Fichier invalide : {error}',
-        'not_saved': 'Le fichier n’existe pas. Enregistrez-le d’abord.',
-        'source': 'Langue source',
-        'target': 'Langue cible',
-    },
-    'de': {
-        'tab': 'Übersetzung',
-        'project': 'Übersetzungsprojekt:',
-        'new': 'Neue Übersetzung',
-        'save': 'Übersetzung speichern',
-        'reload': 'GUI neu laden',
-        'from': 'Übersetzen von:',
-        'to': 'Übersetzen nach:',
-        'cancel': 'Abbrechen',
-        'ok': 'OK',
-        'choose': 'Quell- und Zielsprache wählen.',
-        'different': 'Quell- und Zielsprache müssen unterschiedlich sein.',
-        'select_project': 'Projekt erstellen oder auswählen.',
-        'select_reload': 'Bitte ein Projekt auswählen.',
-        'created': 'Projekt erstellt: {source} → {target}',
-        'opened': 'Projekt geöffnet: {source} → {target}',
-        'saved': 'Übersetzung gespeichert: {target}',
-        'empty': 'Leere Einträge: {count}',
-        'reload_ok': 'GUI-Sprache: {language}',
-        'load_error': 'Projekt konnte nicht geladen werden: {error}',
-        'create_error': 'Projekt konnte nicht erstellt werden: {error}',
-        'save_error': 'Speichern fehlgeschlagen: {error}',
-        'invalid': 'Ungültige Datei: {error}',
-        'not_saved': 'Datei fehlt. Bitte zuerst speichern.',
-        'source': 'Quellsprache',
-        'target': 'Zielsprache',
-    },
-    'es': {
-        'tab': 'Traducción',
-        'project': 'Proyecto de traducción:',
-        'new': 'Nueva traducción',
-        'save': 'Guardar traducción',
-        'reload': 'Recargar GUI',
-        'from': 'Traducir desde:',
-        'to': 'Traducir a:',
-        'cancel': 'Cancelar',
-        'ok': 'Aceptar',
-        'choose': 'Elige ambos idiomas.',
-        'different': 'Los idiomas deben ser diferentes.',
-        'select_project': 'Crea o selecciona un proyecto.',
-        'select_reload': 'Selecciona un proyecto.',
-        'created': 'Proyecto creado: {source} → {target}',
-        'opened': 'Proyecto abierto: {source} → {target}',
-        'saved': 'Traducción guardada: {target}',
-        'empty': 'Entradas vacías: {count}',
-        'reload_ok': 'Idioma de la GUI: {language}',
-        'load_error': 'No se pudo cargar: {error}',
-        'create_error': 'No se pudo crear: {error}',
-        'save_error': 'No se pudo guardar: {error}',
-        'invalid': 'Archivo no válido: {error}',
-        'not_saved': 'El archivo no existe. Guárdalo primero.',
-        'source': 'Idioma de origen',
-        'target': 'Idioma de destino',
-    },
-    'it': {
-        'tab': 'Traduzione',
-        'project': 'Progetto di traduzione:',
-        'new': 'Nuova traduzione',
-        'save': 'Salva traduzione',
-        'reload': 'Ricarica GUI',
-        'from': 'Traduci da:',
-        'to': 'Traduci in:',
-        'cancel': 'Annulla',
-        'ok': 'OK',
-        'choose': 'Scegli entrambe le lingue.',
-        'different': 'Le lingue devono essere diverse.',
-        'select_project': 'Crea o seleziona un progetto.',
-        'select_reload': 'Seleziona un progetto.',
-        'created': 'Progetto creato: {source} → {target}',
-        'opened': 'Progetto aperto: {source} → {target}',
-        'saved': 'Traduzione salvata: {target}',
-        'empty': 'Voci vuote: {count}',
-        'reload_ok': 'Lingua GUI: {language}',
-        'load_error': 'Impossibile caricare: {error}',
-        'create_error': 'Impossibile creare: {error}',
-        'save_error': 'Impossibile salvare: {error}',
-        'invalid': 'File non valido: {error}',
-        'not_saved': 'Il file non esiste. Salvalo prima.',
-        'source': 'Lingua di origine',
-        'target': 'Lingua di destinazione',
-    },
-    'nl': {
-        'tab': 'Vertaling',
-        'project': 'Vertaalproject:',
-        'new': 'Nieuwe vertaling',
-        'save': 'Vertaling opslaan',
-        'reload': 'GUI herladen',
-        'from': 'Vertalen vanuit:',
-        'to': 'Vertalen naar:',
-        'cancel': 'Annuleren',
-        'ok': 'OK',
-        'choose': 'Kies beide talen.',
-        'different': 'Bron- en doeltaal moeten verschillen.',
-        'select_project': 'Maak of selecteer een project.',
-        'select_reload': 'Selecteer een project.',
-        'created': 'Project gemaakt: {source} → {target}',
-        'opened': 'Project geopend: {source} → {target}',
-        'saved': 'Vertaling opgeslagen: {target}',
-        'empty': 'Lege items: {count}',
-        'reload_ok': 'GUI-taal: {language}',
-        'load_error': 'Project laden mislukt: {error}',
-        'create_error': 'Project maken mislukt: {error}',
-        'save_error': 'Opslaan mislukt: {error}',
-        'invalid': 'Ongeldig bestand: {error}',
-        'not_saved': 'Bestand bestaat niet. Sla het eerst op.',
-        'source': 'Bron taal',
-        'target': 'Doel taal',
-    },
-    'pt': {
-        'tab': 'Tradução',
-        'project': 'Projeto de tradução:',
-        'new': 'Nova tradução',
-        'save': 'Salvar tradução',
-        'reload': 'Recarregar GUI',
-        'from': 'Traduzir de:',
-        'to': 'Traduzir para:',
-        'cancel': 'Cancelar',
-        'ok': 'OK',
-        'choose': 'Escolha os dois idiomas.',
-        'different': 'Os idiomas devem ser diferentes.',
-        'select_project': 'Crie ou selecione um projeto.',
-        'select_reload': 'Selecione um projeto.',
-        'created': 'Projeto criado: {source} → {target}',
-        'opened': 'Projeto aberto: {source} → {target}',
-        'saved': 'Tradução salva: {target}',
-        'empty': 'Entradas vazias: {count}',
-        'reload_ok': 'Idioma da GUI: {language}',
-        'load_error': 'Falha ao carregar: {error}',
-        'create_error': 'Falha ao criar: {error}',
-        'save_error': 'Falha ao salvar: {error}',
-        'invalid': 'Arquivo inválido: {error}',
-        'not_saved': 'Arquivo inexistente. Salve primeiro.',
-        'source': 'Idioma de origem',
-        'target': 'Idioma de destino',
-    },
-    'uk': {
-        'tab': 'Переклад',
-        'project': 'Проєкт перекладу:',
-        'new': 'Новий переклад',
-        'save': 'Зберегти переклад',
-        'reload': 'Перезавантажити GUI',
-        'from': 'Переклад з:',
-        'to': 'Переклад на:',
-        'cancel': 'Скасувати',
-        'ok': 'OK',
-        'choose': 'Виберіть обидві мови.',
-        'different': 'Мови джерела й перекладу мають бути різними.',
-        'select_project': 'Створіть або виберіть проєкт.',
-        'select_reload': 'Виберіть проєкт.',
-        'created': 'Проєкт створено: {source} → {target}',
-        'opened': 'Проєкт відкрито: {source} → {target}',
-        'saved': 'Переклад збережено: {target}',
-        'empty': 'Порожні записи: {count}',
-        'reload_ok': 'Мова GUI: {language}',
-        'load_error': 'Не вдалося завантажити: {error}',
-        'create_error': 'Не вдалося створити: {error}',
-        'save_error': 'Не вдалося зберегти: {error}',
-        'invalid': 'Некоректний файл: {error}',
-        'not_saved': 'Файл не існує. Спершу збережіть його.',
-        'source': 'Мова джерела',
-        'target': 'Мова перекладу',
-    },
-    'ja': {
-        'tab': '翻訳',
-        'project': '翻訳プロジェクト：',
-        'new': '新しい翻訳',
-        'save': '翻訳を保存',
-        'reload': 'GUIを再読み込み',
-        'from': '翻訳元：',
-        'to': '翻訳先：',
-        'cancel': 'キャンセル',
-        'ok': 'OK',
-        'choose': '翻訳元と翻訳先を選択してください。',
-        'different': '翻訳元と翻訳先は異なる言語にしてください。',
-        'select_project': 'プロジェクトを作成または選択してください。',
-        'select_reload': 'プロジェクトを選択してください。',
-        'created': '作成：{source} → {target}',
-        'opened': '開きました：{source} → {target}',
-        'saved': '保存しました：{target}',
-        'empty': '未入力：{count}件',
-        'reload_ok': 'GUI言語：{language}',
-        'load_error': '読み込み失敗：{error}',
-        'create_error': '作成失敗：{error}',
-        'save_error': '保存失敗：{error}',
-        'invalid': '無効なファイル：{error}',
-        'not_saved': 'ファイルがありません。先に保存してください。',
-        'source': '元の言語',
-        'target': '翻訳先言語',
-    },
-    'ko': {
-        'tab': '번역',
-        'project': '번역 프로젝트:',
-        'new': '새 번역',
-        'save': '번역 저장',
-        'reload': 'GUI 다시 불러오기',
-        'from': '번역 원본:',
-        'to': '번역 대상:',
-        'cancel': '취소',
-        'ok': '확인',
-        'choose': '원본 및 대상 언어를 선택하세요.',
-        'different': '원본과 대상 언어는 달라야 합니다.',
-        'select_project': '프로젝트를 만들거나 선택하세요.',
-        'select_reload': '프로젝트를 선택하세요.',
-        'created': '프로젝트 생성: {source} → {target}',
-        'opened': '프로젝트 열기: {source} → {target}',
-        'saved': '번역 저장: {target}',
-        'empty': '빈 항목: {count}개',
-        'reload_ok': 'GUI 언어: {language}',
-        'load_error': '로드 실패: {error}',
-        'create_error': '생성 실패: {error}',
-        'save_error': '저장 실패: {error}',
-        'invalid': '잘못된 파일: {error}',
-        'not_saved': '파일이 없습니다. 먼저 저장하세요.',
-        'source': '원본 언어',
-        'target': '대상 언어',
-    },
-    'zh': {
-        'tab': '翻譯',
-        'project': '翻譯專案：',
-        'new': '新增翻譯',
-        'save': '儲存翻譯',
-        'reload': '重新載入 GUI',
-        'from': '翻譯來源：',
-        'to': '翻譯目標：',
-        'cancel': '取消',
-        'ok': '確定',
-        'choose': '請選擇來源和目標語言。',
-        'different': '來源與目標語言必須不同。',
-        'select_project': '請建立或選擇專案。',
-        'select_reload': '請選擇專案。',
-        'created': '已建立：{source} → {target}',
-        'opened': '已開啟：{source} → {target}',
-        'saved': '已儲存：{target}',
-        'empty': '空白項目：{count}',
-        'reload_ok': 'GUI 語言：{language}',
-        'load_error': '載入失敗：{error}',
-        'create_error': '建立失敗：{error}',
-        'save_error': '儲存失敗：{error}',
-        'invalid': '無效檔案：{error}',
-        'not_saved': '檔案不存在，請先儲存。',
-        'source': '來源語言',
-        'target': '目標語言',
-    },
-    'tw': {
-        'tab': '翻譯',
-        'project': '翻譯專案：',
-        'new': '新增翻譯',
-        'save': '儲存翻譯',
-        'reload': '重新載入 GUI',
-        'from': '翻譯來源：',
-        'to': '翻譯目標：',
-        'cancel': '取消',
-        'ok': '確定',
-        'choose': '請選擇來源和目標語言。',
-        'different': '來源與目標語言必須不同。',
-        'select_project': '請建立或選擇專案。',
-        'select_reload': '請選擇專案。',
-        'created': '已建立：{source} → {target}',
-        'opened': '已開啟：{source} → {target}',
-        'saved': '已儲存：{target}',
-        'empty': '空白項目：{count}',
-        'reload_ok': 'GUI 語言：{language}',
-        'load_error': '載入失敗：{error}',
-        'create_error': '建立失敗：{error}',
-        'save_error': '儲存失敗：{error}',
-        'invalid': '無效檔案：{error}',
-        'not_saved': '檔案不存在，請先儲存。',
-        'source': '來源語言',
-        'target': '目標語言',
-    },
-}
-
 
 class TranslationEditorMixin:
     """Translation workspace. Source strings are immutable; target strings are editable."""
 
     def _translation_ui(self, key):
-        language_texts = UI_TEXT.get(self.language_code, UI_TEXT["en"])
-        return language_texts.get(key, UI_TEXT["en"].get(key, key))
-
+        """Resolve legacy Translation tab keys through the shared JSON catalog."""
+        legacy_keys = {
+            "tab": "Translation",
+            "project": "Translation project:",
+            "new": "New Translation",
+            "save": "Save Translation",
+            "reload": "Reload GUI",
+            "from": "Translate from:",
+            "to": "Translate to:",
+            "cancel": "Cancel",
+            "ok": "OK",
+            "choose": "Choose both source and target languages.",
+            "different": "Source and target languages must differ.",
+            "select_project": "Create or select a translation project first.",
+            "select_reload": "Select a translation project first.",
+            "created": "Translation project created: {source} → {target}",
+            "opened": "Translation project opened: {source} → {target}",
+            "saved": "Translation saved: {target}",
+            "empty": "Some entries are empty: {count}",
+            "reload_ok": "GUI language: {language}",
+            "load_error": "Could not load project: {error}",
+            "create_error": "Could not create project: {error}",
+            "save_error": "Unable to save translation: {error}",
+            "invalid": "Translation file is invalid: {error}",
+            "not_saved": "Translation file does not exist. Save it first.",
+            "source": "Source language",
+            "target": "Target language",
+        }
+        return self.tr(legacy_keys.get(key, key))
 
 
     def build_translation_editor_interface(self, parent):
@@ -369,7 +68,7 @@ class TranslationEditorMixin:
         frame.pack(fill="both", expand=True, padx=6, pady=6)
         top = tk.Frame(frame, bg=palette["base"])
         top.pack(fill="x", pady=(0, 7))
-        tk.Label(top, text=self._translation_ui("project"), bg=palette["base"],
+        tk.Label(top, text=self.tr('Translation project:'), bg=palette["base"],
                 fg=palette["text"]).pack(side="left", padx=(2, 6))
         self.translation_project_menu = ttk.Combobox(top, state="readonly", width=30)
         self.translation_project_menu.pack(side="left", fill="x", expand=True)
@@ -382,9 +81,9 @@ class TranslationEditorMixin:
         columns.grid_columnconfigure(1, weight=1, uniform="translation")
         columns.grid_rowconfigure(1, weight=1)
         self.translation_columns = columns
-        self.translation_source_header = tk.Label(columns, text=self._translation_ui("source"),
+        self.translation_source_header = tk.Label(columns, text=self.tr('Source language'),
             bg=palette["selected"], fg=palette["text"], anchor="w", padx=8, pady=5)
-        self.translation_target_header = tk.Label(columns, text=self._translation_ui("target"),
+        self.translation_target_header = tk.Label(columns, text=self.tr('Target language'),
             bg=palette["selected"], fg=palette["text"], anchor="w", padx=8, pady=5)
         self.translation_source_header.grid(row=0, column=0, sticky="ew", padx=(0, 3))
         self.translation_target_header.grid(row=0, column=1, sticky="ew", padx=(3, 0))
@@ -426,12 +125,12 @@ class TranslationEditorMixin:
 
         actions = tk.Frame(frame, bg=palette["base"])
         actions.pack(fill="x", pady=(7, 0))
-        specs = [("new", self.open_new_translation_dialog, "preview"),
-                 ("save", self.save_translation, "generate"),
-                 ("reload", self.reload_with_translation, "stop")]
+        specs = [("New Translation", self.open_new_translation_dialog, "preview"),
+                 ("Save Translation", self.save_translation, "generate"),
+                 ("Reload GUI", self.reload_with_translation, "stop")]
         self.translation_buttons = []
         for label, command, role in specs:
-            button = self.create_action_button(actions, self._translation_ui(label), command, role)
+            button = self.create_action_button(actions, self.tr(label), command, role)
             button.pack(side="left", fill="x", expand=True, padx=3)
             self.translation_buttons.append(button)
         self._refresh_translation_project_menu()
@@ -486,7 +185,7 @@ class TranslationEditorMixin:
             rows = self.translation_engine.build_rows(source_code, target_code)
         except (OSError, ValueError, json.JSONDecodeError) as exc:
             self._clear_translation_rows()
-            self._translation_feedback(self._translation_ui("load_error").format(error=exc), "error")
+            self._translation_feedback(self.tr('Could not load project: {error}').format(error=exc), "error")
             return
         self._populate_translation_rows(rows)
         self.translation_active = {"source": source_code, "target": target_code}
@@ -701,21 +400,21 @@ class TranslationEditorMixin:
     def open_new_translation_dialog(self):
         palette = self.get_theme_palette()
         dialog = tk.Toplevel(self.root)
-        dialog.title(self._translation_ui("new"))
+        dialog.title(self.tr('New Translation'))
         dialog.transient(self.root)
         dialog.resizable(False, False)
         dialog.configure(bg=palette["base"])
         dialog.grab_set()
         frame = tk.Frame(dialog, bg=palette["base"], padx=14, pady=12)
         frame.pack(fill="both", expand=True)
-        tk.Label(frame, text=self._translation_ui("from"), bg=palette["base"],
+        tk.Label(frame, text=self.tr('Translate from:'), bg=palette["base"],
                 fg=palette["text"]).grid(row=0, column=0, sticky="w", pady=(0, 4))
         source_by_display = {name: code for code, name in self.available_languages.items()}
         source_combo = ttk.Combobox(frame, state="readonly", width=36,
             values=list(self.available_languages.values()))
         source_combo.grid(row=1, column=0, sticky="ew", pady=(0, 12))
         source_combo.set(self.available_languages.get("en", "English"))
-        tk.Label(frame, text=self._translation_ui("to"), bg=palette["base"],
+        tk.Label(frame, text=self.tr('Translate to:'), bg=palette["base"],
                 fg=palette["text"]).grid(row=2, column=0, sticky="w", pady=(0, 4))
         target_values = [f"{name} ({code})" for code, name in sorted(
             LANGUAGES.items(), key=lambda item: item[1].casefold())]
@@ -731,18 +430,18 @@ class TranslationEditorMixin:
             selected = target_combo.get()
             target = selected.rsplit("(", 1)[-1].rstrip(")") if selected else None
             if not source or not target:
-                self._translation_feedback(self._translation_ui("choose"), "warning")
+                self._translation_feedback(self.tr('Choose both source and target languages.'), "warning")
                 return
             if source == target:
-                self._translation_feedback(self._translation_ui("different"), "warning")
+                self._translation_feedback(self.tr('Source and target languages must differ.'), "warning")
                 return
             result.update(source=source, target=target)
             dialog.destroy()
 
-        cancel = tk.Button(buttons, text=self._translation_ui("cancel"), command=dialog.destroy,
+        cancel = tk.Button(buttons, text=self.tr('Cancel'), command=dialog.destroy,
             bg=palette["panel"], fg=palette["text"], activebackground=palette["hover"],
             relief="flat", padx=12, pady=6)
-        ok = tk.Button(buttons, text=self._translation_ui("ok"), command=confirm,
+        ok = tk.Button(buttons, text=self.tr('OK'), command=confirm,
             bg=palette["accent"], fg="#ffffff", activebackground=palette["hover"],
             relief="flat", padx=12, pady=6)
         cancel.pack(side="left", padx=(0, 6))
@@ -778,8 +477,8 @@ class TranslationEditorMixin:
             if label:
                 self.translation_project_menu.set(label)
             self._translation_project_selected()
-            status_key = "created" if catalog_created else "opened"
-            message = self._translation_ui(status_key).format(source=source_name, target=target_name)
+            status_text = "Translation project created: {source} → {target}" if catalog_created else "Translation project opened: {source} → {target}"
+            message = self.tr(status_text).format(source=source_name, target=target_name)
             self._translation_feedback(message, "success")
         except (OSError, ValueError, json.JSONDecodeError) as exc:
             if catalog_created and not registry_saved and os.path.isfile(target_path):
@@ -787,45 +486,45 @@ class TranslationEditorMixin:
                     os.remove(target_path)
                 except OSError:
                     pass
-            self._translation_feedback(self._translation_ui("create_error").format(error=exc), "error")
+            self._translation_feedback(self.tr('Could not create project: {error}').format(error=exc), "error")
 
 
 
     def save_translation(self):
         if not self.translation_source_code or not self.translation_target_code:
-            self._translation_feedback(self._translation_ui("select_project"), "warning")
+            self._translation_feedback(self.tr('Create or select a translation project first.'), "warning")
             return
         try:
             self._commit_translation_edit()
             catalog = self.translation_engine.target_catalog(self.translation_target_code)
             if not catalog:
-                self._translation_feedback(self._translation_ui("not_saved"), "warning")
+                self._translation_feedback(self.tr('Translation file does not exist. Save it first.'), "warning")
                 return
             empty_count = 0
             for row in self.translation_rows:
                 catalog[row["key"]] = row["target"]
                 empty_count += int(not row["target"].strip())
             self.translation_engine.write_catalog(self.translation_target_code, catalog)
-            message = self._translation_ui("saved").format(target=f"{self.translation_target_code}.json")
+            message = self.tr('Translation saved: {target}').format(target=f"{self.translation_target_code}.json")
             level = "success"
             if empty_count:
-                message += " · " + self._translation_ui("empty").format(count=empty_count)
+                message += " · " + self.tr('Some entries are empty: {count}').format(count=empty_count)
                 level = "warning"
             self._translation_feedback(message, level)
         except (OSError, ValueError, json.JSONDecodeError) as exc:
-            self._translation_feedback(self._translation_ui("save_error").format(error=exc), "error")
+            self._translation_feedback(self.tr('Unable to save translation: {error}').format(error=exc), "error")
 
 
 
     def reload_with_translation(self):
         target_code = self.translation_target_code
         if not target_code:
-            self._translation_feedback(self._translation_ui("select_reload"), "warning")
+            self._translation_feedback(self.tr('Select a translation project first.'), "warning")
             return
         try:
             self.translation_engine.read_catalog(target_code)
         except (OSError, ValueError, json.JSONDecodeError) as exc:
-            self._translation_feedback(self._translation_ui("invalid").format(error=exc), "error")
+            self._translation_feedback(self.tr('Translation file is invalid: {error}').format(error=exc), "error")
             return
         self.available_languages = self.discover_languages()
         self.load_language(target_code)
@@ -834,7 +533,7 @@ class TranslationEditorMixin:
         for child in self.root.winfo_children():
             child.destroy()
         self.setup_ui_layout()
-        self._translation_feedback(self._translation_ui("reload_ok").format(
+        self._translation_feedback(self.tr('GUI language: {language}').format(
             language=LANGUAGES.get(target_code, target_code)), "success")
 
 

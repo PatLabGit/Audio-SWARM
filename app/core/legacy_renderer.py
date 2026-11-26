@@ -22,6 +22,13 @@ def _core():
     return LegacyRenderCore
 
 
+def _embedded_suffix(audio_path):
+    """Extension of the "<name>_with_art" file the core actually writes (.oga -> .ogg, .aac -> .m4a)."""
+    from .engine import _EMBED_EXT
+    ext = Path(audio_path).suffix.lower()
+    return _EMBED_EXT.get(ext, ext)
+
+
 class _Value:
     def __init__(self, value):
         self.value = value
@@ -38,6 +45,7 @@ class LegacyRendererAdapter:
         self.translator = translator or (lambda text: text)
         self._batch_log_context = None
         self._batch_circular_mode = None
+        self.output_stem = None  # set per track by the batch loop when two sources share a final name
         extra = dict(getattr(settings, "extra", {}) or {})
         stops = list(getattr(settings, "gradient_stops", ()) or (getattr(settings, "solid_color", "#ffffff"),))
         if getattr(settings, "reverse_gradient", False) and not getattr(settings, "solid_color_mode", False):
@@ -111,6 +119,10 @@ class LegacyRendererAdapter:
         if not self.single_file:
             # The batch adapter renames the intermediate *_with_art outputs to the
             # source stem after embedding. Log the final batch filename instead.
+            if self.output_stem and ("Embedded artwork" in message or "M4A file" in message):
+                # Show the disambiguated final name (e.g. track_aac.m4a), not the clashing one.
+                original_stem = self.output_stem.rsplit("_", 1)[0]
+                message = message.replace(f"{original_stem}_with_art", self.output_stem)
             message = message.replace("_with_art", "")
             # Circular renderers also log their intermediate mode suffix, while
             # batch output images are normalized to the source stem.
@@ -156,68 +168,72 @@ class LegacyRendererAdapter:
         cmap = LinearSegmentedColormap.from_list("user_grad", stops)
         scratch_dir = Path(tempfile.mkdtemp(prefix=".swarm_single_", dir=output_dir)) if self.single_file else output_dir
         try:
-            _core().execute_single_waveform_render(
-                self, str(audio_path), str(scratch_dir), cmap
-            )
-        except Exception as exc:
+            try:
+                _core().execute_single_waveform_render(
+                    self, str(audio_path), str(scratch_dir), cmap
+                )
+            except Exception as exc:
+                if self.single_file:
+                    shutil.rmtree(scratch_dir, ignore_errors=True)
+                return ProcessingResult(audio_path, None, False, str(exc))
+            finally:
+                plt.close("all")
+
+            suffix = ".jpg" if getattr(settings, "output_format", "PNG") == "JPG" else ".png"
+            image_path = scratch_dir / f"{audio_path.stem}{suffix}"
+            embedded = scratch_dir / f"{audio_path.stem}_with_art{_embedded_suffix(audio_path)}"
+            if audio_path.suffix.lower() == ".aac":
+                embedded = scratch_dir / f"{audio_path.stem}_with_art.m4a"
+
             if self.single_file:
+                # Render into a private scratch directory first so a same-named image
+                # beside the source can never be overwritten by a single-file run.
+                final_image = output_dir / f"{audio_path.stem}_with_art{suffix}"
+                final_embedded = output_dir / f"{audio_path.stem}_with_art{embedded.suffix}"
+                if image_path.is_file():
+                    image_path.replace(final_image)
+                    image_path = final_image
+                # Do not fall back to a pre-existing image when the current render
+                # intentionally removed its standalone image (keep-images unchecked).
+                # This avoids making an old image appear to have survived this run.
+                if embedded.is_file():
+                    embedded.replace(final_embedded)
+                    embedded = final_embedded
+                else:
+                    embedded = final_embedded if final_embedded.is_file() else embedded
+                if audio_path.suffix.lower() == ".wav" and not getattr(settings, "generate_image_only", False):
+                    wav_copy = output_dir / f"{audio_path.stem}_with_art.wav"
+                    shutil.copy2(audio_path, wav_copy)
+                    embedded = wav_copy
                 shutil.rmtree(scratch_dir, ignore_errors=True)
-            return ProcessingResult(audio_path, None, False, str(exc))
-        finally:
-            plt.close("all")
-
-        suffix = ".jpg" if getattr(settings, "output_format", "PNG") == "JPG" else ".png"
-        image_path = scratch_dir / f"{audio_path.stem}{suffix}"
-        embedded = scratch_dir / f"{audio_path.stem}_with_art{audio_path.suffix.lower()}"
-        if audio_path.suffix.lower() == ".aac":
-            embedded = scratch_dir / f"{audio_path.stem}_with_art.m4a"
-
-        if self.single_file:
-            # Render into a private scratch directory first so a same-named image
-            # beside the source can never be overwritten by a single-file run.
-            final_image = output_dir / f"{audio_path.stem}_with_art{suffix}"
-            final_embedded = output_dir / f"{audio_path.stem}_with_art{embedded.suffix}"
-            if image_path.is_file():
-                image_path.replace(final_image)
-                image_path = final_image
-            # Do not fall back to a pre-existing image when the current render
-            # intentionally removed its standalone image (keep-images unchecked).
-            # This avoids making an old image appear to have survived this run.
-            if embedded.is_file():
-                embedded.replace(final_embedded)
-                embedded = final_embedded
             else:
-                embedded = final_embedded if final_embedded.is_file() else embedded
-            if audio_path.suffix.lower() == ".wav" and not getattr(settings, "generate_image_only", False):
-                wav_copy = output_dir / f"{audio_path.stem}_with_art.wav"
-                shutil.copy2(audio_path, wav_copy)
-                embedded = wav_copy
-            shutil.rmtree(scratch_dir, ignore_errors=True)
-        else:
-            # Bulk output is isolated in a generated folder: retain source stems.
-            bulk_embedded = output_dir / f"{audio_path.stem}{embedded.suffix}"
-            if embedded.is_file() and embedded != bulk_embedded:
-                embedded.replace(bulk_embedded)
-                embedded = bulk_embedded
+                # Bulk output is isolated in a generated folder: retain source stems.
+                bulk_embedded = output_dir / f"{self.output_stem or audio_path.stem}{embedded.suffix}"
+                if embedded.is_file() and embedded != bulk_embedded:
+                    embedded.replace(bulk_embedded)
+                    embedded = bulk_embedded
 
-        if embedded.is_file():
-            output = embedded
-            message = "Original renderer completed; artwork embedding output created."
-        elif image_path.is_file():
-            output = image_path
-            message = "Original renderer completed; standalone waveform image created."
-        else:
+            if embedded.is_file():
+                output = embedded
+                message = "Original renderer completed; artwork embedding output created."
+            elif image_path.is_file():
+                output = image_path
+                message = "Original renderer completed; standalone waveform image created."
+            else:
+                if self.single_file:
+                    shutil.rmtree(scratch_dir, ignore_errors=True)
+                return ProcessingResult(audio_path, None, False, "Original renderer did not create an output file; see processing log.")
             if self.single_file:
                 shutil.rmtree(scratch_dir, ignore_errors=True)
-            return ProcessingResult(audio_path, None, False, "Original renderer did not create an output file; see processing log.")
-        if self.single_file:
-            shutil.rmtree(scratch_dir, ignore_errors=True)
-        return ProcessingResult(audio_path, output, True, message)
+            return ProcessingResult(audio_path, output, True, message)
+        finally:
+            if self.single_file:
+                shutil.rmtree(scratch_dir, ignore_errors=True)
+
 
 
     def render_waveform_preview(self, audio_path: str | Path, output_dir: str | Path, output_image_path: str | Path):
         """Render one preview through the original engine's drawing pipeline only."""
-        from pathlib import Path
         audio_path, output_dir, output_image_path = Path(audio_path), Path(output_dir), Path(output_image_path)
         output_dir.mkdir(parents=True, exist_ok=True)
         stops = list(self.color_nodes)
@@ -253,7 +269,6 @@ class LegacyRendererAdapter:
 
     def render_circular_preview(self, audio_path: str | Path, output_dir: str | Path, mode: str, render_size: int, output_image_path: str | Path):
         """Render a circular preview through the original engine's preview-only branch."""
-        from pathlib import Path
         from .models import ProcessingResult
         audio_path, output_dir, output_image_path = Path(audio_path), Path(output_dir), Path(output_image_path)
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -297,58 +312,63 @@ class LegacyRendererAdapter:
         self._batch_circular_mode = mode
         scratch_dir = Path(tempfile.mkdtemp(prefix=".swarm_single_", dir=output_dir)) if self.single_file else output_dir
         try:
-            _core().execute_single_circular_waveform(
-                self, str(audio_path), str(scratch_dir), None, mode=mode
-            )
-        except Exception as exc:
+            try:
+                _core().execute_single_circular_waveform(
+                    self, str(audio_path), str(scratch_dir), None, mode=mode
+                )
+            except Exception as exc:
+                if self.single_file:
+                    shutil.rmtree(scratch_dir, ignore_errors=True)
+                return ProcessingResult(audio_path, None, False, str(exc))
+            finally:
+                plt.close("all")
+            # All circular modes use the same output-image suffix. Rendering mode
+            # is independent of the filename.
+            suffix_name = "with_art"
+            suffix = ".jpg" if getattr(self.settings, "output_format", "PNG") == "JPG" else ".png"
+            image_path = scratch_dir / f"{audio_path.stem}_{suffix_name}{suffix}"
+            embedded = scratch_dir / f"{audio_path.stem}_with_art{_embedded_suffix(audio_path)}"
+            if audio_path.suffix.lower() == ".aac":
+                embedded = scratch_dir / f"{audio_path.stem}_with_art.m4a"
+
+            if self.single_file:
+                final_image = output_dir / f"{audio_path.stem}_{suffix_name}{suffix}"
+                final_embedded = output_dir / f"{audio_path.stem}_with_art{embedded.suffix}"
+                if image_path.is_file():
+                    image_path.replace(final_image)
+                    image_path = final_image
+                else:
+                    image_path = final_image if final_image.is_file() else image_path
+                if embedded.is_file():
+                    embedded.replace(final_embedded)
+                    embedded = final_embedded
+                else:
+                    embedded = final_embedded if final_embedded.is_file() else embedded
+                if audio_path.suffix.lower() == ".wav" and not getattr(self.settings, "generate_image_only", False):
+                    wav_copy = output_dir / f"{audio_path.stem}_with_art.wav"
+                    shutil.copy2(audio_path, wav_copy)
+                    embedded = wav_copy
+                shutil.rmtree(scratch_dir, ignore_errors=True)
+            else:
+                bulk_image = output_dir / f"{audio_path.stem}{suffix}"
+                if image_path.is_file() and image_path != bulk_image:
+                    image_path.replace(bulk_image)
+                    image_path = bulk_image
+                bulk_embedded = output_dir / f"{self.output_stem or audio_path.stem}{embedded.suffix}"
+                if embedded.is_file() and embedded != bulk_embedded:
+                    embedded.replace(bulk_embedded)
+                    embedded = bulk_embedded
+
+            if embedded.is_file():
+                result = ProcessingResult(audio_path, embedded, True, "Original circular renderer completed and artwork was embedded.")
+            elif image_path.is_file():
+                result = ProcessingResult(audio_path, image_path, True, "Original circular renderer completed.")
+            else:
+                result = ProcessingResult(audio_path, None, False, "Original circular renderer did not create an output file; see processing log.")
             if self.single_file:
                 shutil.rmtree(scratch_dir, ignore_errors=True)
-            return ProcessingResult(audio_path, None, False, str(exc))
+            return result
         finally:
-            plt.close("all")
-        # All circular modes use the same output-image suffix. Rendering mode
-        # is independent of the filename.
-        suffix_name = "with_art"
-        suffix = ".jpg" if getattr(self.settings, "output_format", "PNG") == "JPG" else ".png"
-        image_path = scratch_dir / f"{audio_path.stem}_{suffix_name}{suffix}"
-        embedded = scratch_dir / f"{audio_path.stem}_with_art{audio_path.suffix.lower()}"
-        if audio_path.suffix.lower() == ".aac":
-            embedded = scratch_dir / f"{audio_path.stem}_with_art.m4a"
+            if self.single_file:
+                shutil.rmtree(scratch_dir, ignore_errors=True)
 
-        if self.single_file:
-            final_image = output_dir / f"{audio_path.stem}_{suffix_name}{suffix}"
-            final_embedded = output_dir / f"{audio_path.stem}_with_art{embedded.suffix}"
-            if image_path.is_file():
-                image_path.replace(final_image)
-                image_path = final_image
-            else:
-                image_path = final_image if final_image.is_file() else image_path
-            if embedded.is_file():
-                embedded.replace(final_embedded)
-                embedded = final_embedded
-            else:
-                embedded = final_embedded if final_embedded.is_file() else embedded
-            if audio_path.suffix.lower() == ".wav" and not getattr(self.settings, "generate_image_only", False):
-                wav_copy = output_dir / f"{audio_path.stem}_with_art.wav"
-                shutil.copy2(audio_path, wav_copy)
-                embedded = wav_copy
-            shutil.rmtree(scratch_dir, ignore_errors=True)
-        else:
-            bulk_image = output_dir / f"{audio_path.stem}{suffix}"
-            if image_path.is_file() and image_path != bulk_image:
-                image_path.replace(bulk_image)
-                image_path = bulk_image
-            bulk_embedded = output_dir / f"{audio_path.stem}{embedded.suffix}"
-            if embedded.is_file() and embedded != bulk_embedded:
-                embedded.replace(bulk_embedded)
-                embedded = bulk_embedded
-
-        if embedded.is_file():
-            result = ProcessingResult(audio_path, embedded, True, "Original circular renderer completed and artwork was embedded.")
-        elif image_path.is_file():
-            result = ProcessingResult(audio_path, image_path, True, "Original circular renderer completed.")
-        else:
-            result = ProcessingResult(audio_path, None, False, "Original circular renderer did not create an output file; see processing log.")
-        if self.single_file:
-            shutil.rmtree(scratch_dir, ignore_errors=True)
-        return result

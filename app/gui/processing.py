@@ -151,7 +151,7 @@ class ProcessingMixin:
             try:
                 batch = operation(lambda: self.cancel_operation, self._progress_callback)
             except Exception as exc:
-                self.record_processing_error(f"Processing Error: {exc}")
+                self.ui_call(lambda m=f"Processing Error: {exc}": self.record_processing_error(m))
                 self.ui_call(lambda err=str(exc): self.show_themed_popup(self.tr("Processing Error"), err, kind="error"))
             finally:
                 self._finish_job(batch, title, output_directory)

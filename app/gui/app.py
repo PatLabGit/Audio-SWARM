@@ -87,9 +87,10 @@ class AudioSWARMApp(LocalizationMixin, HelpAboutMixin, TranslationEditorMixin, C
         self.peak_geometry_shape = tk.StringVar(value="Rectangle")
 
         # Gradient State Control Setup (Dynamic Node Storage Array)
-        self.color_nodes = ["#00ff66", "#ffff00", "#ff9900", "#ff0033"]
+        save_gradient, self.color_nodes, reverse_colors = self.read_saved_gradient_settings()
+        self.save_gradient_setting = tk.BooleanVar(value=save_gradient)
         self.is_solid_color_mode = tk.BooleanVar(value=False)
-        self.reverse_color_map = tk.BooleanVar(value=False)
+        self.reverse_color_map = tk.BooleanVar(value=reverse_colors)
 
         # Tab 2 State Variables
         self.tab2_resize_enabled = tk.BooleanVar(value=True)
@@ -163,7 +164,13 @@ class AudioSWARMApp(LocalizationMixin, HelpAboutMixin, TranslationEditorMixin, C
             pass
         self.root.geometry(geometry)
         if state == "zoomed":
-            self.root.state("zoomed")
+            try:
+                self.root.state("zoomed")  # Windows / macOS
+            except tk.TclError:
+                try:
+                    self.root.attributes("-zoomed", True)  # Linux / X11
+                except tk.TclError:
+                    pass
 
     def _save_window_settings_and_close(self):
         """Save window settings without replacing the rest of settings.json."""

@@ -6,7 +6,7 @@ LANGUAGES = {
     "as": "Assamese", "av": "Avaric", "ay": "Aymara", "az": "Azerbaijani",
     "ba": "Bashkir", "be": "Belarusian", "bg": "Bulgarian", "bh": "Bihari",
     "bi": "Bislama", "bm": "Bambara", "bn": "Bengali", "bo": "Tibetan",
-    "br": "Breton", "bs": "Bosnian", "ca": "Catalan", "ce": "Chechen",
+    "br": "Breton", "bs": "Bosnian", "ca": "Catalan", "cb": "Ceb/Visayan", "ce": "Chechen",
     "ch": "Chamorro", "co": "Corsican", "cr": "Cree", "cs": "Czech",
     "cu": "Church Slavic", "cv": "Chuvash", "cy": "Welsh", "da": "Danish",
     "de": "German", "dv": "Divehi", "dz": "Dzongkha", "ee": "Ewe",

@@ -23,5 +23,8 @@ Thumbs.db
 # Backup
 *.bak
 
+# personal notes
+notes/
+
 # personal settings
 settings.json

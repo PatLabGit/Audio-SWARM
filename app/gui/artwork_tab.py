@@ -182,6 +182,7 @@ class ArtworkTabMixin:
             if len(self.color_nodes) == 1:
                 self.color_nodes.append("#ffffff")
         self.rebuild_node_button_row()
+        self.save_settings()
 
     def add_new_gradient_node(self):
         if self.is_processing or self.is_solid_color_mode.get():
@@ -191,6 +192,7 @@ class ArtworkTabMixin:
             return
         self.color_nodes.append("#ffffff")
         self.rebuild_node_button_row()
+        self.save_settings()
 
     def remove_gradient_node(self, index):
         if self.is_processing or self.is_solid_color_mode.get() or len(self.color_nodes) <= 2:
@@ -198,6 +200,7 @@ class ArtworkTabMixin:
         if 0 <= index < len(self.color_nodes):
             self.color_nodes.pop(index)
             self.rebuild_node_button_row()
+            self.save_settings()
 
     def rebuild_node_button_row(self):
         for child in self.node_btn_box.winfo_children():
@@ -272,6 +275,7 @@ class ArtworkTabMixin:
             self.color_nodes[index] = hex_color
             self.record_recent_color(hex_color)
             self.rebuild_node_button_row()
+            self.save_settings()
 
     def redraw_gradient_preview_bar(self):
         self.grad_canvas.delete("all")

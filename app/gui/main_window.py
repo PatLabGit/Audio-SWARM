@@ -65,10 +65,12 @@ class MainWindowMixin:
             "audio-swarm-logo-2.png"
         )
 
-        logo_image = Image.open(logo_path)
+        with Image.open(logo_path) as logo_source:
+            logo_image = logo_source.copy()
         logo_image.thumbnail((42, 42), Image.Resampling.LANCZOS)
 
         self.header_logo = ImageTk.PhotoImage(logo_image)
+        logo_image.close()
 
         tk.Label(
             header,
@@ -227,7 +229,6 @@ class MainWindowMixin:
         if self.is_processing:
             return
         from tkinter import filedialog
-        import os
         current = self.source_folder.get().strip().strip("{}")
         initial_dir = os.path.dirname(current) if os.path.isfile(current) else current
         if not os.path.isdir(initial_dir):
@@ -424,13 +425,18 @@ class MainWindowMixin:
             self.root.after(200, self.on_application_close)
             return
         self._shutting_down = True
+        if busy:
+            # A worker is still running after the grace period: deleting the preview
+            # folder now would race with its writes, so leave it for the next launch.
+            print("Audio-SWARM: a background job was still running; preview folder left in place.", file=sys.stderr)
+            self.root.destroy()
+            return
         try:
             self.circular_preview_image = None
             self.circular_preview_image_path = None
             self.circular_preview_images.clear()
             self.circular_preview_real_modes.clear()
             if self.circular_preview_owned and self.circular_preview_dir and os.path.isdir(self.circular_preview_dir):
-                import shutil
                 shutil.rmtree(self.circular_preview_dir, ignore_errors=False)
         except (OSError, PermissionError) as exc:
             print(f"Audio-SWARM: could not clean circular preview directory: {exc}", file=sys.stderr)

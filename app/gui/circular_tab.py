@@ -1,6 +1,8 @@
 """Circular waveform controls and asynchronous preview."""
 from __future__ import annotations
-import os, threading, queue
+import os
+import queue
+import threading
 from pathlib import Path
 import tkinter as tk
 from tkinter import ttk
@@ -355,12 +357,19 @@ class CircularTabMixin:
                            output_format="PNG", keep_standalone_image=True)
         source_path = self.source_folder.get().strip().strip('{}')
         self._cleanup_active_preview_directories()
+        # Prepared on the Tk thread: this mutates shared GUI state that the close
+        # handler and cleanup code read, so it must not run inside the worker.
+        try:
+            preview_dir = self._prepare_circular_preview_directory(source_path)
+        except OSError as exc:
+            self._show_circular_preview_failure()
+            self.write_system_log(self.tr("❌ Preview Failed: {error}").format(error=exc))
+            return
         self.circular_preview_running = True
         self.set_circular_preview_button_enabled(False)
 
         def worker():
             try:
-                preview_dir = self._prepare_circular_preview_directory(source_path)
                 preview_path = Path(preview_dir) / f"circular-{mode}-preview.png"
                 result = render_circular_waveform_preview(
                     audio_path, preview_dir, settings, mode, preview_size, preview_path

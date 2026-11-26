@@ -2,7 +2,7 @@ numpy>=1.24
 matplotlib>=3.7
 Pillow>=10.0
 mutagen>=1.47
-# Optional: drag-and-drop support
-tkinterdnd2>=0.3
+# Drag-and-drop: tkinterdnd2 is bundled in vendor/ (all platforms). Do not also pip-install it,
+# or a second copy could shadow the bundled native binaries.
 # Optional: bundled FFmpeg binary if FFmpeg is not installed system-wide
 imageio-ffmpeg>=0.4

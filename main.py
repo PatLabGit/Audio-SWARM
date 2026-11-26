@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Audio-SWARM application entry point."""
 from __future__ import annotations
-import multiprocessing
 import os
 import sys
 import tkinter as tk
@@ -27,7 +26,7 @@ def create_root_window():
 
 
 def main():
-    # Imported lazily so spawned render workers don't load the whole GUI.
+    # Imported lazily so Tk/matplotlib load only when the GUI actually starts.
     from app.gui.app import AudioSWARMApp
 
     root = create_root_window()
@@ -36,5 +35,4 @@ def main():
 
 
 if __name__ == "__main__":
-    multiprocessing.freeze_support()  # needed for frozen (PyInstaller) builds that use worker processes
     main()

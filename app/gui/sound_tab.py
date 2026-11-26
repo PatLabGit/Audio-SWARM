@@ -1,6 +1,9 @@
 """Standard waveform tab and asynchronous preview."""
 from __future__ import annotations
-import os, sys, threading, queue
+import os
+import queue
+import sys
+import threading
 from pathlib import Path
 import tkinter as tk
 from tkinter import ttk
@@ -132,8 +135,11 @@ class SoundTabMixin:
         self.solid_mode_check = tk.Checkbutton(node_mgmt_box, text=self.tr("⚡ Enable Solid Flat Color Engine Mode (Ultra Fast / No Slices)"), variable=self.is_solid_color_mode, bg=panel_bg, fg="#ffffff", activebackground=panel_bg, activeforeground="white", selectcolor="#2d2d30", command=self.toggle_solid_color_processing_locks)
         self.solid_mode_check.pack(side="left", padx=15)
 
-        self.reverse_check = tk.Checkbutton(self.color_lbl_frame, text=self.tr("Invert Layer Core Coordinates Processing Direction (Reverse Vector Flow)"), variable=self.reverse_color_map, bg=panel_bg, fg="#ffffff", activebackground=panel_bg, activeforeground="white", selectcolor="#2d2d30", command=self.redraw_gradient_preview_bar)
+        self.reverse_check = tk.Checkbutton(self.color_lbl_frame, text=self.tr("Invert Layer Core Coordinates Processing Direction (Reverse Vector Flow)"), variable=self.reverse_color_map, bg=panel_bg, fg="#ffffff", activebackground=panel_bg, activeforeground="white", selectcolor="#2d2d30", command=lambda: (self.redraw_gradient_preview_bar(), self.save_settings()))
         self.reverse_check.pack(anchor="w", pady=2)
+        
+        self.save_gradient_check = tk.Checkbutton(self.color_lbl_frame, text=self.tr("Save gradient setting"), variable=self.save_gradient_setting, bg=panel_bg, fg="#ffffff", activebackground=panel_bg, activeforeground="white", selectcolor="#2d2d30", command=self.save_settings)
+        self.save_gradient_check.pack(anchor="w", pady=2)
 
         # Panel 4: File Format Controls
         file_lbl_frame = ttk.LabelFrame(self.t1_output_tab, text=self.tr(" 🖼️ Output Asset Backdrop & Container Rule Matrix "), padding=10)
@@ -320,12 +326,18 @@ class SoundTabMixin:
         settings = replace(settings, width=preview_size[0], height=preview_size[1], dpi=100,
                            output_format="PNG", keep_standalone_image=True,
                            gradient_stops=tuple(stops), reverse_gradient=False)
+        # Prepared on the Tk thread (it mutates shared GUI state), not in the worker.
+        try:
+            preview_dir = self._prepare_circular_preview_directory(source_path)
+        except OSError as exc:
+            self._show_sound_preview_failure()
+            self.write_system_log(self.tr("❌ Preview Failed: {error}").format(error=exc))
+            return
         self.sound_preview_running = True
         self.set_sound_preview_button_enabled(False)
 
         def worker():
             try:
-                preview_dir = self._prepare_circular_preview_directory(source_path)
                 preview_path = Path(preview_dir) / "sound-wave-maker-preview.png"
                 result = render_waveform_preview(audio_path, preview_dir, settings, preview_path)
                 if result.success and result.output and result.output.is_file():

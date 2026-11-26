@@ -1,7 +1,13 @@
 """Reusable controls, drag/drop helpers, and UI state utilities."""
 from __future__ import annotations
+import sys
 import tkinter as tk
+from collections import deque
 from app.gui.styles import POPUP_THEME
+
+# Bounded so very large batches cannot grow the in-memory log without limit.
+_MAX_LOG_LINES = 5000
+_MAX_ERROR_LINES = 1000
 
 class ComponentsMixin:
     def create_action_button(self, parent, text, command, kind):
@@ -90,9 +96,9 @@ class ComponentsMixin:
     def write_system_log(self, text_string):
         text_string = str(text_string)
         if not hasattr(self, "process_window_lines"):
-            self.process_window_lines = []
+            self.process_window_lines = deque(maxlen=_MAX_LOG_LINES)
         if not hasattr(self, "process_error_lines"):
-            self.process_error_lines = []
+            self.process_error_lines = deque(maxlen=_MAX_ERROR_LINES)
         self.process_window_lines.append(text_string)
         lowered = text_string.lower()
         if ("❌" in text_string or "traceback" in lowered or "exception" in lowered
@@ -106,8 +112,8 @@ class ComponentsMixin:
             self.save_processing_log(self.process_log_output_directory)
 
     def clear_system_log(self):
-        self.process_window_lines = []
-        self.process_error_lines = []
+        self.process_window_lines = deque(maxlen=_MAX_LOG_LINES)
+        self.process_error_lines = deque(maxlen=_MAX_ERROR_LINES)
         self.log_box.config(state="normal")
         self.log_box.delete("1.0", "end")
         self.log_box.config(state="disabled")
@@ -115,7 +121,7 @@ class ComponentsMixin:
     def record_processing_error(self, message):
         message = str(message)
         if not hasattr(self, "process_error_lines"):
-            self.process_error_lines = []
+            self.process_error_lines = deque(maxlen=_MAX_ERROR_LINES)
         self.process_error_lines.append(message)
         if getattr(self, "process_log_output_directory", None):
             self.save_processing_log(self.process_log_output_directory)
@@ -137,7 +143,6 @@ class ComponentsMixin:
                 log_file.write("\n")
             return str(log_path)
         except (OSError, ValueError) as exc:
-            import sys
             print(f"Audio-SWARM: could not save Audio-SWARM.log: {exc}", file=sys.stderr)
             return None
 

@@ -1,7 +1,6 @@
 """Pure-Python orchestration for Audio-SWARM processing jobs."""
 from __future__ import annotations
 
-from collections.abc import Callable
 from pathlib import Path
 
 from .artwork import embed_artwork, prepare_artwork
@@ -16,6 +15,7 @@ from .models import (
     WaveformSettings,
 )
 from .legacy_renderer import LegacyRendererAdapter
+from .process import ffmpeg_command, run_quiet
 import os
 import wave
 import base64
@@ -31,6 +31,76 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.collections import LineCollection
 from matplotlib.patches import Polygon, Rectangle
+
+try:  # mutagen is imported lazily by the embed helpers; this only narrows except clauses
+    from mutagen import MutagenError
+except ImportError:  # pragma: no cover
+    class MutagenError(Exception):
+        """Placeholder when mutagen is not installed."""
+
+FFMPEG_TIMEOUT = 600  # seconds; a hung FFmpeg must not freeze the worker (and Cancel) forever
+_AUDIO_ONLY = ("-nostdin", "-hide_banner", "-loglevel", "error")
+
+
+# Source extension -> extension of the "<name>_with_art" output.
+_EMBED_EXT = {
+    ".mp3": ".mp3", ".flac": ".flac", ".m4a": ".m4a", ".aac": ".m4a",
+    ".ogg": ".ogg", ".oga": ".oga", ".opus": ".opus", ".aiff": ".aiff", ".aif": ".aif",
+}
+
+
+def _embedded_output_counts(audio_files):
+    """Count how many sources map to the same final embedded file name.
+
+    Only a few formats really collide: .aac and .m4a both become ``<name>.m4a``, and
+    .ogg and .oga both become ``<name>.ogg``. Every other format keeps its own extension.
+    """
+    counts = {}
+    for path in audio_files:
+        key = (str(path.parent), path.stem.casefold(), _EMBED_EXT.get(path.suffix.lower(), path.suffix.lower()))
+        counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+def _unique_output_stem(audio_path, counts):
+    """Return the output stem; a converted source (.aac, .oga) is tagged when it would clash."""
+    ext = audio_path.suffix.lower()
+    out_ext = _EMBED_EXT.get(ext, ext)
+    key = (str(audio_path.parent), audio_path.stem.casefold(), out_ext)
+    if counts.get(key, 0) > 1 and ext != out_ext:
+        return f"{audio_path.stem}_{ext.lstrip('.')}"
+    return None
+
+
+class _DecodeError(Exception):
+    """Raised when FFmpeg cannot decode a track; the message holds the details."""
+
+
+def _decode_audio_bytes(audio_path):
+    """Decode the first audio stream to mono 11025 Hz s16le PCM bytes.
+
+    Uses a private TemporaryDirectory (never the user's output folder), so no temp
+    file can be orphaned or collide, even if the process is killed mid-decode.
+    """
+    with tempfile.TemporaryDirectory(prefix="audio_swarm_") as tmp:
+        wav_path = os.path.join(tmp, "decoded.wav")
+        try:
+            decode = run_quiet(
+                ffmpeg_command("-y", *_AUDIO_ONLY, "-i", str(audio_path), "-map", "0:a:0", "-vn",
+                               "-ac", "1", "-ar", "11025", "-c:a", "pcm_s16le", wav_path),
+                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, check=False,
+                timeout=FFMPEG_TIMEOUT,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise _DecodeError(str(exc)) from exc
+        if decode.returncode != 0 or not os.path.isfile(wav_path) or os.path.getsize(wav_path) <= 44:
+            details = (decode.stderr or "FFmpeg did not produce decoded audio").strip()
+            raise _DecodeError(details[-400:])
+        try:
+            with wave.open(wav_path, "rb") as wav_file:
+                return wav_file.readframes(wav_file.getnframes())
+        except (OSError, wave.Error, ValueError) as exc:
+            raise _DecodeError(str(exc)) from exc
 
 
 class ProcessingEngine:
@@ -67,6 +137,7 @@ class ProcessingEngine:
         renderer = LegacyRendererAdapter(settings, self._log, single_file=source_path.is_file(), popup=self._popup, translator=self._translator)
         results: list[ProcessingResult] = []
         was_cancelled = False
+        output_counts = _embedded_output_counts(audio_files)
         for index, audio_path in enumerate(audio_files, start=1):
             if cancelled is not None and cancelled():
                 was_cancelled = True
@@ -83,6 +154,7 @@ class ProcessingEngine:
                     results.append(ProcessingResult(audio_path, None, False, str(error)))
                     continue
             renderer.set_batch_log_context(source_path, audio_path)
+            renderer.output_stem = _unique_output_stem(audio_path, output_counts)
             result = renderer.render_waveform(audio_path, destination_dir)
             results.append(result)
             if progress is not None:
@@ -106,6 +178,7 @@ class ProcessingEngine:
         renderer = LegacyRendererAdapter(settings, self._log, single_file=source_path.is_file(), popup=self._popup, translator=self._translator)
         results: list[ProcessingResult] = []
         was_cancelled = False
+        output_counts = _embedded_output_counts(audio_files)
         normalized_mode = {"radial": "waveform", "waveform": "waveform", "spectrum": "spectrum", "minimal": "minimal"}.get(mode, mode)
         for index, audio_path in enumerate(audio_files, start=1):
             if cancelled is not None and cancelled():
@@ -121,6 +194,7 @@ class ProcessingEngine:
                     results.append(ProcessingResult(audio_path, None, False, str(error)))
                     continue
             renderer.set_batch_log_context(source_path, audio_path, normalized_mode)
+            renderer.output_stem = _unique_output_stem(audio_path, output_counts)
             result = renderer.render_circular(audio_path, destination_dir, normalized_mode)
             results.append(result)
             if progress is not None:
@@ -271,7 +345,7 @@ class LegacyRenderCore:
             return True, ""
         except ImportError:
             return False, "OGG/OGA artwork embedding requires the Python 'mutagen' package"
-        except Exception as exc:
+        except (OSError, ValueError, RuntimeError, KeyError, MutagenError) as exc:
             return False, str(exc)
         finally:
             if temp_path and os.path.exists(temp_path):
@@ -321,7 +395,7 @@ class LegacyRenderCore:
             return True, ""
         except ImportError:
             return False, "AIFF artwork embedding requires the Python 'mutagen' package"
-        except Exception as exc:
+        except (OSError, ValueError, RuntimeError, KeyError, MutagenError) as exc:
             return False, str(exc)
         finally:
             if temp_path and os.path.exists(temp_path):
@@ -338,23 +412,23 @@ class LegacyRenderCore:
         )
         os.close(fd)
         try:
-            command = [
-                "ffmpeg", "-y", "-nostdin", "-hide_banner", "-loglevel", "error",
+            command = ffmpeg_command(
+                "-y", *_AUDIO_ONLY,
                 "-i", audio_path, "-i", image_path,
                 # Explicit audio mapping excludes any existing attached-picture stream in the input.
                 "-map", "0:a:0", "-map", "1:v:0", "-map_metadata", "0",
                 "-c:a", "copy", "-c:v", video_codec, "-disposition:v:0", "attached_pic",
                 temp_path,
-            ]
-            result = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
-                                    text=True, check=False)
+            )
+            result = run_quiet(command, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                               text=True, check=False, timeout=FFMPEG_TIMEOUT)
             if result.returncode != 0 or not os.path.isfile(temp_path) or os.path.getsize(temp_path) == 0:
                 details = (result.stderr or "FFmpeg did not produce a valid output file").strip()
                 return False, details[-700:]
             os.replace(temp_path, output_path)
             temp_path = None
             return True, ""
-        except OSError as exc:
+        except (OSError, subprocess.TimeoutExpired) as exc:
             return False, str(exc)
         finally:
             if temp_path and os.path.exists(temp_path):
@@ -380,60 +454,35 @@ class LegacyRenderCore:
         out_img_ext = "jpg" if is_jpg else "png"
         if output_image_path is None:
             output_image_path = os.path.join(output_dir, f"{file_base}.{out_img_ext}")
-        temp_wav_name = ".swarm_temp_preview.wav" if preview_only else f".swarm_temp_core_{file_base}.wav"
-        temp_wav = os.path.join(output_dir, temp_wav_name)
-        # Decode only the first audio stream. In particular, ignore attached album-art
-        # video streams that may already exist inside an MP3 or another audio container.
         try:
-            if os.path.exists(temp_wav):
-                os.remove(temp_wav)
-            decode = subprocess.run(
-                ["ffmpeg", "-y", "-nostdin", "-hide_banner", "-loglevel", "error",
-                 "-i", audio_path, "-map", "0:a:0", "-vn", "-ac", "1", "-ar", "11025",
-                 "-c:a", "pcm_s16le", temp_wav],
-                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, check=False,
-            )
-            if decode.returncode != 0 or not os.path.isfile(temp_wav) or os.path.getsize(temp_wav) <= 44:
-                details = (decode.stderr or "FFmpeg did not produce decoded audio").strip()
-                self.root.after(0, lambda fn=file_name: self.write_system_log(
-                    self.tr("❌ Error: Core engine codec failure decoding '{filename}'.").format(filename=fn)
-                ))
-                self.root.after(0, lambda fn=file_name, err=details[-400:]: self.write_system_log(
-                    self.tr("Audio decoding details for '{filename}': {error}").format(filename=fn, error=err)
-                ))
-                return
-
-            with wave.open(temp_wav, 'rb') as w:
-                num_frames = w.getnframes()
-                raw_bytes = w.readframes(num_frames)
-        except (OSError, wave.Error, ValueError) as exc:
-            self.root.after(0, lambda fn=file_name, err=str(exc): self.write_system_log(
+            raw_bytes = _decode_audio_bytes(audio_path)
+        except _DecodeError as exc:
+            self.root.after(0, lambda fn=file_name: self.write_system_log(
                 self.tr("❌ Error: Core engine codec failure decoding '{filename}'.").format(filename=fn)
             ))
+            self.root.after(0, lambda fn=file_name, err=str(exc): self.write_system_log(
+                self.tr("Audio decoding details for '{filename}': {error}").format(filename=fn, error=err)
+            ))
             return
-        finally:
-            if os.path.exists(temp_wav):
-                try:
-                    os.remove(temp_wav)
-                except OSError:
-                    pass
 
         if not raw_bytes:
             self.root.after(0, lambda fn=file_name: self.write_system_log(
                 self.tr("⚠️ Track '{filename}' contains no audio samples.").format(filename=fn)
             ))
             return
-        audio_samples = np.frombuffer(raw_bytes, dtype='<i2').astype(np.float32)
+        pcm = np.frombuffer(raw_bytes, dtype='<i2')
         bars = setting("num_bars", "num_bars")
-        samples_per_bar = len(audio_samples) // bars
+        samples_per_bar = len(pcm) // bars
         
         if samples_per_bar == 0:
             self.root.after(0, lambda: self.write_system_log(self.tr("⚠️ Track '{filename}' is too short for the selected bar count.").format(filename=file_name)))
             return
 
-        raw_heights = [np.max(np.abs(audio_samples[i*samples_per_bar : (i+1)*samples_per_bar])) for i in range(bars)]
-        max_peak = max(raw_heights) if max(raw_heights) > 0 else 1
-        normalized_heights = [(h / max_peak) * 0.9 + 0.1 for h in raw_heights]
+        usable = samples_per_bar * bars
+        raw_heights = np.abs(pcm[:usable].astype(np.int32)).reshape(bars, samples_per_bar).max(axis=1)
+        pcm = None
+        max_peak = int(raw_heights.max()) if raw_heights.max() > 0 else 1
+        normalized_heights = [(float(h) / max_peak) * 0.9 + 0.1 for h in raw_heights]
 
         render_dpi = 100 if preview_only else max(1, int(setting("target_dpi", "target_dpi")))
         if render_size is not None:
@@ -701,7 +750,7 @@ class LegacyRenderCore:
             plt.close(fig)
             del fig, ax
             # Release the decoded audio buffers for this track before the next one.
-            audio_samples = raw_bytes = raw_heights = normalized_heights = None
+            raw_bytes = raw_heights = normalized_heights = None
             gc.collect()
         if preview_only:
             return os.path.isfile(output_image_path) and os.path.getsize(output_image_path) > 0
@@ -717,22 +766,9 @@ class LegacyRenderCore:
 
         # Embed artwork only in containers that can represent it. WAV stays image-only;
         # raw AAC has no artwork metadata container, so its output is packaged as M4A.
-        embedded_output = None
-        if ext == '.mp3':
-            embedded_output = os.path.join(output_dir, f"{file_base}_with_art.mp3")
-        elif ext in ('.ogg', '.oga', '.opus'):
-            embedded_extension = ".opus" if ext == ".opus" else ".ogg"
-            embedded_output = os.path.join(output_dir, f"{file_base}_with_art{embedded_extension}")
-        elif ext == '.flac':
-            embedded_output = os.path.join(output_dir, f"{file_base}_with_art.flac")
-        elif ext == '.m4a':
-            embedded_output = os.path.join(output_dir, f"{file_base}_with_art.m4a")
-        elif ext == '.aac':
-            embedded_output = os.path.join(output_dir, f"{file_base}_with_art.m4a")
-        elif ext == '.aiff':
-            embedded_output = os.path.join(output_dir, f"{file_base}_with_art.aiff")
-        elif ext == '.aif':
-            embedded_output = os.path.join(output_dir, f"{file_base}_with_art.aif")
+        embedded_extension = _EMBED_EXT.get(ext)
+        embedded_output = (os.path.join(output_dir, f"{file_base}_with_art{embedded_extension}")
+                           if embedded_extension else None)
 
         if embedded_output:
             if ext in ('.ogg', '.oga', '.opus'):
@@ -773,8 +809,6 @@ class LegacyRenderCore:
 
     def execute_single_circular_waveform(self, audio_path, output_dir, cmap_engine, mode=None, render_size=None, output_image_path=None, preview_only=False, preview_settings=None):
         """Render one selected circular visualization and optionally embed it as cover art."""
-        import subprocess
-        import matplotlib.pyplot as plt
 
         def setting(name, widget_name):
             if preview_settings is not None:
@@ -799,50 +833,24 @@ class LegacyRenderCore:
         suffix = "with_art"
         if output_image_path is None:
             output_image_path = os.path.join(output_dir, f"{file_base}_{suffix}.{image_ext}")
-        temp_wav = os.path.join(output_dir, f".swarm_temp_{file_base}_{suffix}.wav")
 
         try:
-            # Decode only the first audio stream and explicitly discard video/artwork
-            # streams. Some MP3/M4A files contain an attached cover image that FFmpeg
-            # otherwise may treat as a video stream during WAV conversion.
-            if os.path.exists(temp_wav):
-                os.remove(temp_wav)
-            decode = subprocess.run(
-                ["ffmpeg", "-y", "-nostdin", "-hide_banner", "-loglevel", "error",
-                 "-i", audio_path, "-map", "0:a:0", "-vn", "-ac", "1", "-ar", "11025",
-                 "-c:a", "pcm_s16le", temp_wav],
-                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, check=False,
-            )
-            if decode.returncode != 0 or not os.path.isfile(temp_wav) or os.path.getsize(temp_wav) <= 44:
-                details = (decode.stderr or "FFmpeg did not produce decoded audio").strip()
-                log_ui( lambda fn=file_name: self.write_system_log(
-                    self.tr("❌ Error: Core engine codec failure decoding '{filename}'.").format(filename=fn)
-                ))
-                log_ui( lambda fn=file_name, err=details[-400:]: self.write_system_log(
-                    self.tr("Audio decoding details for '{filename}': {error}").format(filename=fn, error=err)
-                ))
-                return
-
-            with wave.open(temp_wav, 'rb') as wav_file:
-                frame_count = wav_file.getnframes()
-                raw_bytes = wav_file.readframes(frame_count)
-            if not raw_bytes:
-                log_ui( lambda fn=file_name: self.write_system_log(
-                    self.tr("⚠️ Track '{filename}' contains no audio samples.").format(filename=fn)
-                ))
-                return
-            audio_samples = np.frombuffer(raw_bytes, dtype='<i2').astype(np.float32)
-        except (OSError, wave.Error, ValueError) as exc:
-            log_ui( lambda fn=file_name, err=str(exc): self.write_system_log(
-                self.tr("❌ Circular waveform failed for '{filename}': {error}").format(filename=fn, error=err)
+            raw_bytes = _decode_audio_bytes(audio_path)
+        except _DecodeError as exc:
+            log_ui(lambda fn=file_name: self.write_system_log(
+                self.tr("❌ Error: Core engine codec failure decoding '{filename}'.").format(filename=fn)
+            ))
+            log_ui(lambda fn=file_name, err=str(exc): self.write_system_log(
+                self.tr("Audio decoding details for '{filename}': {error}").format(filename=fn, error=err)
             ))
             return
-        finally:
-            if os.path.exists(temp_wav):
-                try:
-                    os.remove(temp_wav)
-                except OSError:
-                    pass
+        if not raw_bytes:
+            log_ui(lambda fn=file_name: self.write_system_log(
+                self.tr("⚠️ Track '{filename}' contains no audio samples.").format(filename=fn)
+            ))
+            return
+        audio_samples = np.frombuffer(raw_bytes, dtype='<i2').astype(np.float32)
+        raw_bytes = None  # float32 copy is all the renderers need
 
         size_px = int(render_size) if render_size is not None else max(256, min(12000, int(self.circular_size.get())))
         if size_px < 1:
@@ -965,7 +973,6 @@ class LegacyRenderCore:
             if mode == "minimal":
                 # Minimal mode is a true signed-sample waveform, drawn as a clean
                 # continuous line in Cartesian coordinates to support gradient colors.
-                from matplotlib.collections import LineCollection
                 ax = fig.add_axes([0, 0, 1, 1])
                 ax.set_xlim(-1.0, 1.0)
                 ax.set_ylim(-1.0, 1.0)
@@ -1291,22 +1298,9 @@ class LegacyRenderCore:
         # Sound Wave Maker. WAV remains image-only; raw AAC is packaged as M4A,
         # because the raw AAC/ADTS stream has no standard cover-art container.
         video_codec = "mjpeg" if is_jpg else "png"
-        embedded_output = None
-        if ext == '.mp3':
-            embedded_output = os.path.join(output_dir, f"{file_base}_with_art.mp3")
-        elif ext in ('.ogg', '.oga', '.opus'):
-            embedded_extension = ".opus" if ext == ".opus" else ".ogg"
-            embedded_output = os.path.join(output_dir, f"{file_base}_with_art{embedded_extension}")
-        elif ext == '.flac':
-            embedded_output = os.path.join(output_dir, f"{file_base}_with_art.flac")
-        elif ext == '.m4a':
-            embedded_output = os.path.join(output_dir, f"{file_base}_with_art.m4a")
-        elif ext == '.aac':
-            embedded_output = os.path.join(output_dir, f"{file_base}_with_art.m4a")
-        elif ext == '.aiff':
-            embedded_output = os.path.join(output_dir, f"{file_base}_with_art.aiff")
-        elif ext == '.aif':
-            embedded_output = os.path.join(output_dir, f"{file_base}_with_art.aif")
+        embedded_extension = _EMBED_EXT.get(ext)
+        embedded_output = (os.path.join(output_dir, f"{file_base}_with_art{embedded_extension}")
+                           if embedded_extension else None)
 
         if embedded_output:
             if ext in ('.ogg', '.oga', '.opus'):

@@ -83,6 +83,20 @@ class LocalizationMixin:
         return [c.upper() for c in colors if isinstance(c, str) and len(c) == 7
                 and c.startswith("#") and all(ch in "0123456789ABCDEFabcdef" for ch in c[1:])][:20]
 
+    def read_saved_gradient_settings(self):
+        """Read saved gradient colours and reverse direction when enabled."""
+        try:
+            with open(self.settings_path, "r", encoding="utf-8") as settings_file:
+                settings = json.load(settings_file)
+            enabled = settings.get("save_gradient_setting", False)
+            colors = settings.get("gradient_nodes", [])
+            reverse = settings.get("reverse_color_map", False)
+            if enabled and isinstance(colors, list) and colors:
+                return True, colors, reverse
+        except (OSError, json.JSONDecodeError):
+            pass
+        return False, ["#00ff66", "#ffff00", "#ff9900", "#ff0033"], False
+
     def save_settings(self):
         """Persist settings without discarding keys introduced by other features."""
         temporary_path = self.settings_path + ".tmp"
@@ -99,6 +113,13 @@ class LocalizationMixin:
             settings["recent_colors"] = list(getattr(self, "recent_colors", []))[:20]
             image_only_var = getattr(self, "generate_image_only", None)
             settings["generate_image_only"] = bool(image_only_var.get()) if image_only_var is not None else False
+            for key in ("save_gradient_setting", "reverse_color_map", "gradient_nodes"):
+                settings.pop(key, None)
+            save_gradient = self.save_gradient_setting.get()
+            settings["save_gradient_setting"] = save_gradient
+            if save_gradient:
+                settings["reverse_color_map"] = self.reverse_color_map.get()
+                settings["gradient_nodes"] = self.color_nodes
             with open(temporary_path, "w", encoding="utf-8") as settings_file:
                 json.dump(settings, settings_file, ensure_ascii=False, indent=4)
                 settings_file.write("\n")

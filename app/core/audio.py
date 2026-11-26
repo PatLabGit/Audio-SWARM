@@ -8,6 +8,8 @@ from pathlib import Path
 
 import numpy as np
 
+from .process import ffmpeg_command, run_quiet
+
 
 def decode_mono_samples(audio_path: str | Path, sample_rate: int = 11025) -> np.ndarray:
     """Decode the first audio stream to mono float samples using FFmpeg.
@@ -17,15 +19,17 @@ def decode_mono_samples(audio_path: str | Path, sample_rate: int = 11025) -> np.
     source = Path(audio_path)
     with tempfile.TemporaryDirectory(prefix="audio_swarm_") as temporary_directory:
         decoded_path = Path(temporary_directory) / "decoded.wav"
-        command = [
-            "ffmpeg", "-y", "-nostdin", "-hide_banner", "-loglevel", "error",
+        command = ffmpeg_command(
+            "-y", "-nostdin", "-hide_banner", "-loglevel", "error",
             "-i", str(source), "-map", "0:a:0", "-vn", "-ac", "1", "-ar",
             str(sample_rate), "-c:a", "pcm_s16le", str(decoded_path),
-        ]
+        )
         try:
-            process = subprocess.run(command, capture_output=True, text=True, check=False)
+            process = run_quiet(command, capture_output=True, text=True, check=False, timeout=600)
         except OSError as error:
             raise RuntimeError("FFmpeg could not be started.") from error
+        except subprocess.TimeoutExpired as error:
+            raise RuntimeError("FFmpeg timed out while decoding the audio file.") from error
         if process.returncode != 0 or not decoded_path.is_file():
             detail = process.stderr.strip()[-500:]
             raise RuntimeError(f"Audio decoding failed: {detail or 'no decoded output'}")

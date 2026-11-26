@@ -1,10 +1,10 @@
 """Pure-Python business logic engine for embedding video artwork posters."""
 
 from __future__ import annotations
-import os
 import subprocess
 from pathlib import Path
 from .models import ProcessingResult
+from .process import ffmpeg_executable, run_quiet
 
 SUPPORTED_VIDEO_SUFFIXES = frozenset({".mp4", ".m4v", ".mov", ".mkv"})
 
@@ -13,12 +13,13 @@ def embed_video_artwork(
     video_path: str | Path,
     image_path: str | Path,
     output_path: str | Path,
-    ffmpeg_path: str = "ffmpeg"
+    ffmpeg_path: str | None = None
 ) -> ProcessingResult:
     """Embeds an image into a video container using lossless stream copying.
     
     Optimized for high compatibility with Linux media players (VLC, Celluloid).
     """
+    ffmpeg_path = ffmpeg_path or ffmpeg_executable() or "ffmpeg"
     source_video = Path(video_path).resolve()
     source_image = Path(image_path).resolve()
     dest_video = Path(output_path).resolve()
@@ -61,9 +62,9 @@ def embed_video_artwork(
         ]
 
     try:
-        result = subprocess.run(
+        run_quiet(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            text=True, check=True
+            text=True, check=True, timeout=1800
         )
         
         if not dest_video.is_file() or dest_video.stat().st_size == 0:
@@ -71,8 +72,8 @@ def embed_video_artwork(
             
         return ProcessingResult(source_video, dest_video, True, "Video poster cover embedded successfully.")
         
-    except (subprocess.CalledProcessError, RuntimeError, OSError) as error:
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, RuntimeError, OSError) as error:
         dest_video.unlink(missing_ok=True)
-        error_msg = error.stderr.strip() if hasattr(error, "stderr") else str(error)
+        error_msg = (getattr(error, "stderr", None) or str(error)).strip()
         return ProcessingResult(source_video, None, False, f"FFmpeg Error: {error_msg}")
 
