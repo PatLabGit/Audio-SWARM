@@ -1,5 +1,21 @@
 # Audio-SWARM 🎶🖌️
 
+<div align="center"> 
+
+  <p><strong>High-Resolution Audio Waveform Generator & Bulk Album Artwork Tool</strong></p>
+  <p>
+    <a href="https://github.io"><strong>🌐 Official Website & Gallery (EN)</strong></a> •
+    <a href="https://github.iofr.html"><strong>🇫🇷 Site officiel & Galerie (FR)</strong></a> •
+    <a href="https://github.com"><strong>🐛 Report a Bug</strong></a>
+  </p>
+  <p>
+    <img src="https://shields.io" alt="License: AGPL-3.0" />
+    <img src="https://shields.io" alt="Python 3.12+" />
+    <img src="https://shields.io" alt="Platforms" />
+    <img src="https://shields.io" alt="12 Languages" />
+  </p>
+</div>
+
 **Author:** Patrice Laborda
 
 **Audio-S**ound **W**aveform & bulk Album/**A**rtwork-cover batch **R**emix **M**otif is a bulk sound wave & album cover art generator.
