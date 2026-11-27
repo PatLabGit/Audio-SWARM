@@ -8,12 +8,14 @@
     <a href="https://github.iofr.html"><strong>🇫🇷 Site officiel & Galerie (FR)</strong></a> •
     <a href="https://github.com"><strong>🐛 Report a Bug</strong></a>
   </p>
-  <p>
-    <img src="https://shields.io" alt="License: AGPL-3.0" />
-    <img src="https://shields.io" alt="Python 3.12+" />
-    <img src="https://shields.io" alt="Platforms" />
-    <img src="https://shields.io" alt="12 Languages" />
-  </p>
+<p align="center">
+  <img src="https://shields.io/badge/release-v0.6.5-4dc71f?style=flat" alt="Release" />
+  <img src="https://shields.io/badge/license-AGPL--3.0-007ec6?style=flat" alt="License" />
+  <img src="https://shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-4cc61e?style=flat" alt="Platform" />
+  <img src="https://shields.io/badge/languages-12%20built--in-7c007c?style=flat" alt="Languages" />
+  <img src="https://shields.io/badge/python-3.12%2B-e05d44?style=flat" alt="Python" />
+</p>
+
 </div>
 
 **Author:** Patrice Laborda
