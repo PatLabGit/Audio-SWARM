@@ -4,9 +4,9 @@
 
   <p><strong>High-Resolution Audio Waveform Generator & Bulk Album Artwork Tool</strong></p>
   <p>
-    <a href="https://github.io"><strong>🌐 Official Website & Gallery (EN)</strong></a> •
-    <a href="https://github.iofr.html"><strong>🇫🇷 Site officiel & Galerie (FR)</strong></a> •
-    <a href="https://github.com"><strong>🐛 Report a Bug</strong></a>
+    <a href="https://audio-swarm.github.io"><strong>🌐 Official Website & Gallery (EN)</strong></a> •
+    <a href="https://audio-swarm.github.io/fr.html"><strong>🇫🇷 Site officiel & Galerie (FR)</strong></a> •
+    <a href="https://github.com/PatLabGit/Audio-SWARM/issues"><strong>🐛 Report a Bug</strong></a>
   </p>
 <p align="center">
   <img src="https://shields.io/badge/release-v0.6.5-4dc71f?style=flat" alt="Release" />
