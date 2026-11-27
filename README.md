@@ -9,7 +9,7 @@
     <a href="https://github.com/PatLabGit/Audio-SWARM/issues"><strong>🐛 Report a Bug</strong></a>
   </p>
 <p align="center">
-  <img src="https://shields.io/badge/release-v0.6.5-4dc71f?style=flat" alt="Release" />
+  <img src="https://shields.io/badge/release-Alphav0.6.5-4dc71f?style=flat" alt="Release" />
   <img src="https://shields.io/badge/license-AGPL--3.0-007ec6?style=flat" alt="License" />
   <img src="https://shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-4cc61e?style=flat" alt="Platform" />
   <img src="https://shields.io/badge/languages-12%20built--in-7c007c?style=flat" alt="Languages" />
