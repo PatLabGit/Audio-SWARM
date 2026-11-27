@@ -561,76 +561,88 @@ Some features may change, and bugs are expected at this stage.
 
 ## 📂 Project Architecture
 
-For developers interested in exploring, modifying or contributing to Audio-SWARM, the project is organized into separate folders to make the source code easier to navigate and maintain (I hope...).
-
-The application is divided into two main parts:
-
-- **Core (`app/core/`):** Handles the actual work, including audio processing, waveform generation, image manipulation, file handling and artwork embedding.
-- **GUI (`app/gui/`):** Handles everything you see and interact with, including the main window, tabs, buttons, previews, dialogs and application settings.
-
-I've grouped the files by responsibility rather than listing every bundled dependency file.
+Audio-SWARM is organized into separate modules to keep the graphical interface, audio processing engine, localization system and supporting resources independent and hopefully easier to maintain.
 
 ## Project Structure
 
-```
-Audio-SWARM/
+```text
+Audio-SWARM-Alpha-6.5/
 │
 ├── main.py                         # Application entry point
 ├── README.md                       # Project documentation
+├── LICENSE                         # Software license
 ├── requirements.txt                # Python dependencies
-├── settings.json                   # Application settings and preferences
-├── .gitignore                      # Git exclusions
-├── license                         # License information
 │
-├── app/
+├── Audio-SWARM.desktop             # Linux desktop launcher
+├── Audio-SWARM_Windows.vbs         # Windows launcher
+├── Audio-SWARM_macOS.app/          # macOS application launcher
+│   └── Contents/
+│       ├── Info.plist
+│       ├── MacOS/
+│       │   └── Audio-SWARMLauncher
+│       └── Resources/
+│           └── AppIcon.icns
+│
+├── app/                            # Application source code
+│   │
 │   ├── __init__.py
 │   │
 │   ├── core/                       # Audio processing and rendering engine
 │   │   ├── __init__.py
+│   │   ├── artwork.py              # Artwork preparation and embedding
 │   │   ├── audio.py                # Audio decoding and sample extraction
-│   │   ├── files.py                # File discovery and output directory handling
-│   │   ├── waveform.py             # Waveform and circular waveform rendering
-│   │   ├── artwork.py              # Artwork preparation and audio embedding
-│   │   ├── video.py                # Video artwork embedding
-│   │   ├── process.py              # External process and FFmpeg utilities
-│   │   ├── engine.py               # Processing engine and task execution
+│   │   ├── engine.py               # Main processing engine
+│   │   ├── files.py                # File discovery and output handling
+│   │   ├── legacy_renderer.py      # Legacy rendering compatibility
 │   │   ├── models.py               # Processing settings and result models
-│   │   └── legacy_renderer.py      # Legacy renderer compatibility adapter
+│   │   ├── process.py              # External process and FFmpeg utilities
+│   │   ├── video.py                # Video artwork processing
+│   │   └── waveform.py             # Waveform rendering
 │   │
-│   └── gui/                        # Tkinter graphical interface
+│   ├── gui/                        # Tkinter graphical interface
+│   │   ├── __init__.py
+│   │   ├── app.py                  # Main application assembly
+│   │   ├── artwork_tab.py          # Bulk Artwork Linker interface
+│   │   ├── circular_tab.py         # Circular Waveform interface
+│   │   ├── color_picker.py         # Custom colour picker
+│   │   ├── components.py           # Shared GUI components
+│   │   ├── constants.py            # GUI constants
+│   │   ├── help_about.py           # Help and About interface
+│   │   ├── localization.py         # Language and settings handling
+│   │   ├── main_window.py          # Main window and workspace layout
+│   │   ├── processing.py           # GUI processing integration
+│   │   ├── sound_tab.py            # Sound Wave Maker interface
+│   │   ├── styles.py               # Widget styles
+│   │   ├── theme.py                # Theme palettes
+│   │   └── video_tab.py            # Video Poster interface
+│   │
+│   └── localization_tool/          # Translation editor
 │       ├── __init__.py
-│       ├── app.py                  # Main application assembly
-│       ├── main_window.py          # Main window and workspace layout
-│       ├── components.py           # Shared GUI components
-│       ├── sound_tab.py            # Sound Wave Maker interface
-│       ├── circular_tab.py         # Circular Waveform interface
-│       ├── artwork_tab.py          # Artwork processing interface
-│       ├── video_tab.py            # Video Poster interface
-│       ├── processing.py           # GUI processing integration
-│       ├── localization.py         # Language and translation handling
-│       ├── theme.py                # Theme palettes and colour roles
-│       ├── styles.py               # ttk styles and widget appearance
-│       ├── color_picker.py         # Custom colour picker dialog
-│       ├── help_about.py           # Help and About interface
-│       └── constants.py            # GUI constants
+│       ├── translation_editor.py   # Translation editor interface
+│       ├── translation_engine.py   # Translation processing
+│       ├── translation_feedback.py # Translation feedback
+│       ├── translation_languages.py# Available languages
+│       └── translation_project.py  # Translation project management
 │
-├── languages/                      # Interface translations
-│   ├── en.json
+├── languages/                      # Interface translation files
+│   ├── cb.json
 │   ├── de.json
+│   ├── en.json
 │   ├── es.json
 │   ├── fr.json
 │   ├── it.json
 │   ├── ja.json
 │   ├── ko.json
 │   ├── nl.json
+│   ├── obsolete-keys-notes.md
 │   ├── pt.json
 │   ├── tw.json
 │   ├── uk.json
 │   └── zh.json
 │
 ├── help/                           # Multilingual help documentation
-│   ├── en.md
 │   ├── de.md
+│   ├── en.md
 │   ├── es.md
 │   ├── fr.md
 │   ├── it.md
@@ -641,11 +653,11 @@ Audio-SWARM/
 │   ├── tw.md
 │   ├── uk.md
 │   ├── zh.md
-│   └── images/                     # Help illustrations
+│   └── images/                     # Help illustrations and screenshots
 │
 ├── about/                          # Multilingual About information
-│   ├── en.md
 │   ├── de.md
+│   ├── en.md
 │   ├── es.md
 │   ├── fr.md
 │   ├── it.md
@@ -653,46 +665,81 @@ Audio-SWARM/
 │   ├── ko.md
 │   ├── nl.md
 │   ├── pt.md
+│   ├── requirements.md
 │   ├── tw.md
 │   ├── uk.md
-│   ├── zh.md
-│   └── requirements.md
+│   └── zh.md
 │
 ├── img/                            # Application graphics and artwork
+│   ├── audio-swarm-logo.png
+│   ├── audio-swarm-logo-2.png
+│   ├── audio-swarm-logo-2.ico
+│   ├── waveform-style-*.png        # Waveform style examples
+│   ├── 4k-waveform-style-*.png     # High-resolution examples
+│   ├── circular-*.png              # Circular waveform examples
+│   ├── 4k-circular-*.png            # High-resolution circular examples
+│   ├── canvas-resolution-*.png     # Canvas resolution examples
+│   ├── 4k-canvas-resolution-*.png  # High-resolution canvas examples
+│   ├── images-references
+│   │
 │   └── readme-img/                 # README screenshots and illustrations
+│       ├── bulk-artwork-linker.jpg
+│       ├── celluloid-player.jpg
+│       ├── circular-waveform-main.jpg
+│       ├── circular-waveform-minimal-circular.jpg
+│       ├── circular-waveform-radial-spectrum.jpg
+│       ├── cmd-pip.png
+│       ├── help-about.jpg
+│       ├── my-poster.jpg
+│       ├── python-install-path.jpg
+│       ├── sound-waveform-maker-canvas-resolution.jpg
+│       ├── sound-waveform-maker-colors.jpg
+│       ├── sound-waveform-maker-output-format.jpg
+│       ├── sound-waveform-maker-waveform-style.jpg
+│       ├── vlc-player.jpg
 │
-├── vendor/                         # Bundled third-party dependencies
-│   └── tkinterdnd2/                # Drag-and-drop support
-│
-├── notes/                          # Development notes
-├── REVIEW_FIXES.md                 # Development review and fixes
-│
-├── Audio-SWARM.desktop             # Linux desktop launcher
-├── Audio-SWARM_Windows.vbs         # Windows launcher
-└── Audio-SWARM_macOS.app/          # macOS application launcher
+└── vendor/                         # Bundled third-party dependencies
+    └── tkinterdnd2/                # Drag-and-drop support
+        ├── TkinterDnD.py
+        ├── __init__.py
+        └── tkdnd/                  # Platform-specific native libraries
+            ├── linux-arm64/
+            ├── linux-arm64-tcl9/
+            ├── linux-x64/
+            ├── linux-x64-tcl9/
+            ├── osx-arm64/
+            ├── osx-arm64-tcl9/
+            ├── osx-x64/
+            ├── win-arm64/
+            ├── win-x64/
+            ├── win-x64-tcl9/
+            ├── win-x86/
+            └── win-x86-tcl9/
 ```
 
 ### Main Application Components
 
-| Component    | Responsibility                                                                        |
-| ------------ | ------------------------------------------------------------------------------------- |
-| `app/core/`  | Audio decoding, waveform rendering, artwork processing, embedding and batch execution |
-| `app/gui/`   | Graphical interface, workspace management, controls and user interaction              |
-| `languages/` | Translated interface strings                                                          |
-| `help/`      | User documentation and illustrations                                                  |
-| `about/`     | About information and requirements                                                    |
-| `img/`       | Application icons, previews and visual resources                                      |
-| `vendor/`    | Bundled third-party libraries                                                         |
+| Component | Responsibility |
+|---|---|
+| `app/core/` | Audio decoding, waveform rendering, artwork processing, metadata embedding and video processing. |
+| `app/gui/` | Main window, workspaces, controls, previews, dialogs, themes and settings. |
+| `app/localization_tool/` | Translation editor and translation project management. |
+| `languages/` | Translated interface strings. |
+| `help/` | Multilingual user documentation and illustrations. |
+| `about/` | Application information and requirements. |
+| `img/` | Application icons, waveform examples and README images. |
+| `vendor/` | Bundled third-party libraries, including platform-specific drag-and-drop support. |
 
 ### GUI Workspaces
 
 The graphical interface is divided into five main workspaces:
 
-1. **Sound Wave Maker** – Creates waveform artwork from audio files, with configurable canvas dimensions, waveform styles, colours and output settings.
-2. **Circular Waveform** – Creates circular waveform artwork, including Circular Waveform, Radial Spectrum and Minimal Circular Waveform modes.
+1. **Sound Wave Maker** – Creates horizontal and vertical waveform artwork with configurable styles, colours, gradients and output settings.
+2. **Circular Waveform** – Creates Circular Waveform, Radial Spectrum and Minimal Circular Waveform artwork.
 3. **Bulk Artwork Linker** – Matches artwork images with audio files and processes them in batches.
 4. **Video Poster** – Matches poster images with video files and processes them in batches.
-5. **Help / About** – Provides multilingual documentation, application information and usage instructions.
+5. **Help / About** – Provides multilingual documentation, application information and requirements.
+6. **Translate** – From Alpha 6.4 a translation editor is available separately through the localization tool in "Help / About."
 
 ---
 
