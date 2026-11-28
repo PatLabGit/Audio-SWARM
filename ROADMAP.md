@@ -45,7 +45,7 @@ Ideas and features being evaluated. These are not confirmed commitments.
 - [ ] **Stereo Comparison:** Additional ways to visualize differences between left and right audio channels.
 
 ### Workflow & Customization
-- [ ] **Custom Presets:** Save and reload personal configurations for waveform styles, colours, ~~gradients~~ and rendering settings.
+- [ ] **Custom Presets:** Save and reload personal configurations for waveform styles, colours, gradients and rendering settings.
 - [ ] **Export Presets:** Ready-to-use settings for common resolutions, aspect ratios and printing formats.
 - [ ] **Visualization Templates:** Predefined combinations of rendering styles and colour schemes.
 - [ ] **Batch Processing Profiles:** Save different processing configurations for repeated batch operations.
