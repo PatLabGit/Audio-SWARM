@@ -1,34 +1,54 @@
 # Audio-SWARM — Development Roadmap
 
-This page outlines planned features, improvements, and fixes for future versions of Audio-SWARM.
+Here’s a look at what I’m building next for Audio-SWARM! Plans shift as things evolve, so treat this as a living list rather than set-in-stone promises.
 
-Items listed here are subject to change as development progresses.
-
-## Coming Soon
+## On Deck
 
 Features planned for upcoming releases.
 
 - [ ] **Standalone Binaries:** Provide downloadable packages for each operating system:
-1. Linux: `.AppImage` and/or `.deb`
-2. Windows: `.exe`
-3. macOS: `.dmg`
+    - Linux: `.AppImage` and/or `.deb`
+    - Windows: `.exe`
+    - macOS: `.dmg`
+    
 - [ ] **Sinusoidal Waveform:** Introduce sinusoidal waveform styles in both Sound Wave Maker and Circular Waveform.
 - [ ] **Vector Export:** Add SVG and PDF export support for scalable, high-quality waveform artwork and professional printing.
 
-## Planned Improvements
+## In the pipeline
+
+- [ ] **Pre-Made Disc Labels:** Add ready-to-use label templates for MiniDisc, CD, Mini CD, DVD, Blu-ray, vinyl records in various sizes and speeds, Flexi Discs, Shellac Records and Acetate Discs.
+
+*Non-exhaustive list:*
+
+- MiniDisc
+- CD (120 mm)
+- Mini CD (80 mm)
+- DVD (120 mm)
+- Mini DVD (80 mm)
+- Blu-ray Disc (120 mm)
+- Mini Blu-ray Disc (80 mm)
+- Vinyl Record 12" (305 mm): 33⅓, 45 and 78 RPM
+- Vinyl Record 10" (254 mm): 33⅓, 45 and 78 RPM
+- Vinyl Record 7" (178 mm): 33⅓ and 45 RPM
+- Vinyl Record 5" (127 mm)
+- Flexi Disc
+- Shellac Record
+- Acetate / Lacquer Disc
+
+## Polishing & Tweaks
 
 Existing features and components that need further development.
 
 - [ ] **GUI Redesign:** The current user interface needs significant improvement. Several design ideas are being considered, potentially leading to a complete GUI refactoring.
 - [ ] **Vertical Waveform Gradient:** Improve gradient rendering quality and processing speed.
 
-## Future Fixes
+## Bug Squashing
 
 Known issues and bugs scheduled for investigation or correction.
 
 - [ ] **Bug Reports:** Found a bug? Please report it through the [GitHub Issues](https://github.com/PatLabGit/Audio-SWARM/issues) page.
 
-## Under Consideration
+## Ideas & Brainstorming
 
 Ideas and features being evaluated. These are not confirmed commitments.
 
